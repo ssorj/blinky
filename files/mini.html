@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>Blinky</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="stylesheet" href="site.css" type="text/css"/>
+    <script type="text/javascript" src="site.js"></script>    
+  </head>
+  <body class="mini">
+    <div id="content"></div>
+    <script type="text/javascript">
+      "use strict";
+      window.addEventListener("load", blinky.updateContent);
+      window.setInterval(blinky.updateContent, 10000);
+    </script>
+  </body>
+</html>

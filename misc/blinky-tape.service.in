@@ -1,0 +1,7 @@
+[Unit]
+Description=Blinky Tape
+
+[Service]
+ExecStart=@PREFIX@/bin/blinky-tape
+Restart=on-failure
+WantedBy=multi-user.target

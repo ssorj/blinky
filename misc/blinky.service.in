@@ -1,0 +1,9 @@
+[Unit]
+Description=Blinky
+
+[Service]
+ExecStart=@PREFIX@/bin/blinky
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
