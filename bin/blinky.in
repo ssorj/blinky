@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,7 +29,7 @@ sys.path.append(os.path.join(home, "python"))
 import brbn
 import runpy
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from blinky.model import *
 from blinky.brbn import *
 from faller import *
@@ -37,19 +37,26 @@ from faller import *
 user_dir = os.path.expanduser("~")
 default_config_file = os.path.join(user_dir, ".config", "blinky", "config.py")
 
-description = "Blinky displays results from CI servers"
+description = "Blinky collects and displays results from CI jobs"
 
-epilog = """Blinky looks for its configuration in the following locations: (1)
-the FILE indicated by --config if set, (2)
-$HOME/.config/blinky/config.py, (3) /etc/blinky/config.py."""
+epilog = \
+         "Blinky looks for its configuration in the following locations:\n" \
+         "\n" \
+         "  1. The FILE indicated by --config\n" \
+         "  2. $HOME/.config/blinky/config.py\n" \
+         "  3. /etc/blinky/config.py.\n"
 
-parser = ArgumentParser(description=description, epilog=epilog)
+parser = ArgumentParser(description=description, epilog=epilog,
+                        formatter_class=RawDescriptionHelpFormatter)
 
 parser.add_argument("--http-port", metavar="PORT",
                     help="Serve HTTP at PORT (8000)")
 
 parser.add_argument("--config", default=default_config_file, metavar="FILE",
                     help="Load configuration from FILE")
+
+parser.add_argument("--init-only", action="store_true",
+                    help="Initialize then exit")
 
 _log = logger("blinky")
 
@@ -77,6 +84,9 @@ def main():
     app.load()
     app.init()
     app.start()
+
+    if args.init_only:
+        return
 
     server.run()
 

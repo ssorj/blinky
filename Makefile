@@ -1,9 +1,9 @@
-# 1. dnf install python3-pyserial python3-requests python3-flask
+# 1. dnf install python3-pyserial python3-requests python3-tornado
 # 2. sudo usermod -G wheel,dialout jross
 
 DESTDIR := ""
 PREFIX := /usr/local
-home_dir = ${PREFIX}/share/blinky
+home = ${PREFIX}/share/blinky
 
 .PHONY: default
 default: devel
@@ -26,15 +26,15 @@ clean:
 build:
 	mkdir -p build/bin
 	mkdir -p build/misc
-	scripts/configure-file bin/blinky.in build/bin/blinky blinky_home ${home_dir}
-	scripts/configure-file bin/blinky-tape.in build/bin/blinky-tape blinky_home ${home_dir}
+	scripts/configure-file bin/blinky.in build/bin/blinky blinky_home ${home}
+	scripts/configure-file bin/blinky-tape.in build/bin/blinky-tape blinky_home ${home}
 	scripts/configure-file misc/blinky.service.in build/misc/blinky.service PREFIX ${PREFIX}
 	scripts/configure-file misc/blinky-tape.service.in build/misc/blinky-tape.service PREFIX ${PREFIX}
 
 .PHONY: install
 install: build
-	scripts/install-files python ${DESTDIR}${home_dir}/python \*.py
-	scripts/install-files files ${DESTDIR}${home_dir}/files \*
+	scripts/install-files python ${DESTDIR}${home}/python \*.py
+	scripts/install-files files ${DESTDIR}${home}/files \*
 	install -d ${DESTDIR}${PREFIX}/bin
 	install -d ${DESTDIR}${PREFIX}/lib/systemd/system
 	install -m 755 build/bin/blinky ${DESTDIR}${PREFIX}/bin/blinky
@@ -45,12 +45,12 @@ install: build
 .PHONY: test
 test: PREFIX := ${PWD}/install
 test: clean install
-	blinky --help > /dev/null
+	${PREFIX}/bin/blinky --init-only
 
 .PHONY: devel
 devel: PREFIX := ${PWD}/install
 devel: clean install
-	PATH=${PREFIX}/bin:${PATH} blinky
+	${PREFIX}/bin/blinky
 
 .PHONY: update-%
 update-%:
