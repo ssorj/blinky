@@ -78,15 +78,15 @@ def main():
     app = Blinky(home, model)
     server = brbn.Server(app, port=http_port)
 
-    model.update()
-    model.update_thread.start()
-
     app.load()
     app.init()
     app.start()
 
     if args.init_only:
         return
+
+    model.update()
+    model.update_thread.start()
 
     server.run()
 

@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,10 +18,6 @@
 # under the License.
 #
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import os
 import sys
 
@@ -34,7 +29,7 @@ sys.path.append(os.path.join(home_dir, "python"))
 from blinky.tape import *
 
 def main():
-    device_file = "/dev/ttyACM0"
+    device_file = "/dev/ttyACM1"
     data_url = "http://concordia.usersys.redhat.com:56720/data.json"
 
     try:
@@ -43,11 +38,10 @@ def main():
         pass
     
     tape = Tape(device_file, data_url)
+
     tape.update()
     tape.update_thread.start()
-
-    with tape:
-        tape.run()
+    tape.run()
                 
 if __name__ == "__main__":
     try:

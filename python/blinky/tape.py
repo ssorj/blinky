@@ -17,34 +17,25 @@
 # under the License.
 #
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from .common import *
-
-import BlinkyTape as _blinkytape
+import codecs as _codecs
+import logging as _logging
 import requests as _requests
+import sched as _sched
+import serial as _serial
 import threading as _threading
 import time as _time
 
-_log = logger("blinky.tape")
+_log = _logging.getLogger("blinky.tape")
 
 class Tape:
-    def __init__(self, device, url):
-        self.device = device
+    def __init__(self, device_path, url):
+        self.device = _Device(device_path)
         self.url = url
 
         self.lights = [_black for i in range(60)]
-        self.tape = None
+        self.scheduler = _sched.scheduler()
 
-        self.update_thread = _TapeUpdateThread(self)
-
-    def __enter__(self):
-        self.tape = _blinkytape.BlinkyTape(self.device, buffered=False)
-
-    def __exit__(self, type, value, traceback):
-        self.tape.close()
+        self.update_thread = _UpdateThread(self)
 
     def update(self):
         self.lights[59] = _black
@@ -53,7 +44,7 @@ class Tape:
             with _requests.Session() as session:
                 data = session.get(self.url).json()
         except Exception as e:
-            _log.warn("Failure requesting new data; %s", e)
+            _log.warn("Failure requesting new data: {}".format(str(e)))
             self.lights[59] = _blinky_yellow
             return
 
@@ -82,33 +73,52 @@ class Tape:
 
     def run(self):
         while True:
+            try:
+                self.do_run()
+            except KeyboardInterrupt:
+                raise
+            except:
+                _log.exception("Error!")
+                _time.sleep(5)
+            
+    def do_run(self):
+        with self.device:
             self.tick()
+            self.scheduler.run()
 
     def tick(self):
-        colors = [_black.color() for x in range(60)]
+        self.scheduler.enter(0.1, 1, self.blink)
 
-        for i, light in enumerate(self.lights):
-            if not light.blinky:
-                colors[i] = light.color()
+        colors = [x.color() for x in self.lights]
 
-        self.tape.send_list(colors)
+        self.send_colors(colors)
 
-        _time.sleep(2.9)
+    def blink(self):
+        self.scheduler.enter(2.9, 1, self.tick)
 
-        for i, light in enumerate(self.lights):
-            colors[i] = light.color()
+        colors = [_black.color() if x.blinky else x.color() for x in self.lights]
 
-        self.tape.send_list(colors)
+        self.send_colors(colors)
 
-        _time.sleep(0.1)
+    def send_colors(self, colors):
+        data = [chr(r) + chr(g) + chr(b) for r, g, b in colors]
+        data.append(chr(255)) # Control
 
-class _TapeUpdateThread(_threading.Thread):
+        data = "".join(data)
+        data = _codecs.latin_1_encode(data)[0]
+
+        self.device.serial.write(data)
+        self.device.serial.flush()
+        self.device.serial.flushInput()
+
+class _UpdateThread(_threading.Thread):
     def __init__(self, tape):
         super().__init__()
 
         self.tape = tape
-        self.name = "_TapeUpdateThread"
+        self.name = "update"
         self.daemon = True
+        self.scheduler = _sched.scheduler()
 
     def start(self):
         _log.info("Starting update thread")
@@ -116,15 +126,29 @@ class _TapeUpdateThread(_threading.Thread):
         super().start()
         
     def run(self):
-        while True:
-            _time.sleep(10)
+        self.update_tape()
+        self.scheduler.run()
 
-            try:
-                self.tape.update()
-            except:
-                _log.exception("Update failed")
+    def update_tape(self):
+        self.scheduler.enter(30, 1, self.update_tape)
 
-class _Light(object):
+        try:
+            self.tape.update()
+        except:
+            _log.exception("Update failed")
+
+class _Device:
+    def __init__(self, path):
+        self.path = path
+        self.serial = None
+
+    def __enter__(self):
+        self.serial = _serial.Serial(self.path, 115200)
+
+    def __exit__(self, type, value, traceback):
+        self.serial.close()
+
+class _Light:
     def __init__(self, red, green, blue, blinky=False):
         self.red = red
         self.green = green

@@ -168,9 +168,14 @@ var blinky = {
         
         if (currentResult.status === "SUCCESS") {
             elem.setAttribute("class", "result-item success");
-        } else if (currentResult.status === "FAILURE"
-                   || currentResult.status === "UNSTABLE") {
+        } else if (currentResult.status === "FAILURE") {
             if (previousResult && previousResult.status === "SUCCESS") {
+                elem.setAttribute("class", "result-item failure blinky");
+            } else {
+                elem.setAttribute("class", "result-item failure");
+            }
+        } else if (currentResult.status === "UNSTABLE") {
+            if (previousResult && previousResult.status === "STABLE") {
                 elem.setAttribute("class", "result-item failure blinky");
             } else {
                 elem.setAttribute("class", "result-item failure");
