@@ -44,22 +44,3 @@ class _Data(_brbn.Resource):
     def render(self, request):
         data = self.app.model.render_data()
         return _json.dumps(data, indent=4, separators=(", ", ": "))
-
-    def xxx_send_response(self, request):
-        ims_timestamp = request.env.get("HTTP_IF_MODIFIED_SINCE")
-        update_time = self.app.model.update_time
-
-        if ims_timestamp is not None and update_time is not None:
-            update_time = update_time.replace(microsecond=0)
-            ims_time = _datetime.datetime.strptime(ims_timestamp, _http_date)
-
-            # _log.info("304 if updated {} <= IMS {}".format(update_time, ims_time))
-
-            if update_time <= ims_time:
-                return request.respond_not_modified()
-
-        content = self.app.model.render_data()
-        content = _json.dumps(content, indent=4, separators=(", ", ": "))
-        content = content.encode("utf-8")
-
-        return request.respond_ok(content, "application/json")

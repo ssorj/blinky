@@ -35,7 +35,7 @@ _log = logger("blinky.model")
 class Model:
     def __init__(self):
         self.update_thread = _ModelUpdateThread(self)
-        self._update_time = None
+        self.update_time = None
         
         self.test_groups = list()
         self.components = list()
@@ -48,18 +48,11 @@ class Model:
         cls = self.__class__.__name__
         return "{}({})".format(cls, id(self))
 
-    def get_update_time(self):
-        # _log.warn("Getting update_time {} from {}".format(self._update_time, self))
-        return self._update_time
-
-    def set_update_time(self, update_time):
-        # _log.warn("Setting update_time on {} to {}".format(self, update_time))
-        self._update_time = update_time
-
-    update_time = property(get_update_time, set_update_time)
-    
     def render_data(self):
         data = dict()
+
+        if self.update_time is None:
+            raise Exception("The model isn't updated yet")
 
         time = self.update_time.timetuple()
         time = _time.mktime(time) + 1e-6 * self.update_time.microsecond

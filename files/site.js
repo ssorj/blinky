@@ -26,6 +26,8 @@ var $ = function(selectors) {
 };
 
 var blinky = {
+    etag: null,
+    
     sendRequest: function(url, handler) {
         var request = new XMLHttpRequest();
         
@@ -35,12 +37,12 @@ var blinky = {
             }
         };
 
-        // Javascript dates are a choice blend of wrong and incapable
-
-        var since = blinky.updateTime;
-        
         request.open("GET", url);
-        request.setRequestHeader("If-None-Match", since);
+
+        if (blinky.etag !== null) {
+            request.setRequestHeader("If-None-Match", blinky.etag);
+        }
+        
         request.send(null);
     },
 
@@ -87,12 +89,7 @@ var blinky = {
         var newContent = document.createElement("div");
         newContent.setAttribute("id", "content");
         
-        blinky.updateTime = request.getResponseHeader("ETag");
-
-        //var localUpdateTime = blinky.updateTime.toLocaleTimeString();
-        //var updateTimestamp = blinky.createChild(newContent, "div");
-        //updateTimestamp.setAttribute("class", "update-timestamp");
-        //updateTimestamp.textContent = localUpdateTime;
+        blinky.etag = request.getResponseHeader("ETag");
 
         var testGroups = data["test_groups"];
         
@@ -242,9 +239,7 @@ var blinky = {
         td.textContent = value;
     },
     
-    updateTime: new Date(0),
-    
     updateContent: function() {
         blinky.sendRequest("data.json", blinky.renderContent);
-    },
+    }
 };
