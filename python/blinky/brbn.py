@@ -35,15 +35,19 @@ class Blinky(_brbn.Application):
         
         self.model = model
 
-    def receive_request(self, request):
-        if request.path == "/data.json":
-            return self.send_json(request)
+        _Data(self, "/data.json")
 
-        return super().receive_request(request)
+class _Data(_brbn.Resource):
+    def get_etag(self, request):
+        return str(self.app.model.update_time)
+    
+    def render(self, request):
+        data = self.app.model.render_data()
+        return _json.dumps(data, indent=4, separators=(", ", ": "))
 
-    def send_json(self, request):
+    def xxx_send_response(self, request):
         ims_timestamp = request.env.get("HTTP_IF_MODIFIED_SINCE")
-        update_time = self.model.update_time
+        update_time = self.app.model.update_time
 
         if ims_timestamp is not None and update_time is not None:
             update_time = update_time.replace(microsecond=0)
@@ -54,7 +58,7 @@ class Blinky(_brbn.Application):
             if update_time <= ims_time:
                 return request.respond_not_modified()
 
-        content = self.model.render_data()
+        content = self.app.model.render_data()
         content = _json.dumps(content, indent=4, separators=(", ", ": "))
         content = content.encode("utf-8")
 

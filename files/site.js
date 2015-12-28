@@ -38,11 +38,9 @@ var blinky = {
         // Javascript dates are a choice blend of wrong and incapable
 
         var since = blinky.updateTime;
-        var offset = since.getTimezoneOffset() * 60 * 1000;
-        since = new Date(since.getTime() - offset).toUTCString();
         
         request.open("GET", url);
-        request.setRequestHeader("If-Modified-Since", since);
+        request.setRequestHeader("If-None-Match", since);
         request.send(null);
     },
 
@@ -89,7 +87,7 @@ var blinky = {
         var newContent = document.createElement("div");
         newContent.setAttribute("id", "content");
         
-        blinky.updateTime = new Date(data["update_timestamp"] * 1000);
+        blinky.updateTime = request.getResponseHeader("ETag");
 
         //var localUpdateTime = blinky.updateTime.toLocaleTimeString();
         //var updateTimestamp = blinky.createChild(newContent, "div");

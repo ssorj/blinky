@@ -1,4 +1,4 @@
-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -53,6 +53,7 @@ _content_types_by_extension = {
     ".jpeg": "image/jpeg",
     ".jpg": "image/jpeg",
     ".js": "application/javascript",
+    ".json": "application/json",
     ".svg": "image/svg+xml",
     ".txt": _text,
     ".woff": "application/font-woff",
@@ -134,10 +135,9 @@ class Application:
         self._home = home
         self._brbn_home = None
 
-        self._pages_by_path = dict()
-        self._files_by_path = dict()
+        self._resources = dict()
 
-        self._root_page = None
+        self._root_resource = None
         self._error_page = _ErrorPage(self)
 
         self._sessions_by_id = dict()
@@ -159,36 +159,33 @@ class Application:
         return self._brbn_home
 
     @property
-    def pages_by_path(self):
-        return self._pages_by_path
-
+    def resources(self):
+        return self._resources
+    
     @property
-    def files_by_path(self):
-        return self._files_by_path
+    def root_resource(self):
+        return self._root_resource
 
-    @property
-    def root_page(self):
-        return self._root_page
-
-    @root_page.setter
-    def root_page(self, page):
-        assert isinstance(page, Page), page
-        assert page.path == "/"
-
-        self._root_page = page
+    @root_resource.setter
+    def root_resource(self, resource):
+        assert isinstance(resource, Resource), resource
+        self._root_resource = resource
     
     def load(self):
         _log.info("Loading {}".format(self))
 
         if self.brbn_home is not None:
             brbn_files_dir = _os.path.join(self.brbn_home, "files")
-            self._load_files(brbn_files_dir)
+            self._add_files(brbn_files_dir)
 
         if self.home is not None:
             app_files_dir = _os.path.join(self.home, "files")
-            self._load_files(app_files_dir)
+            self._add_files(app_files_dir)
+
+        for path, resource in sorted(self.resources.items()):
+            resource.load()
         
-    def _load_files(self, files_dir):
+    def _add_files(self, files_dir):
         if not _os.path.isdir(files_dir):
             return
 
@@ -196,36 +193,37 @@ class Application:
         
         for root, dirs, files in _os.walk(files_dir):
             for name in files:
-                path = _os.path.join(root, name)
+                fs_path = _os.path.join(root, name)
+                path = fs_path[len(files_dir):]
 
-                with open(path, "rb") as file:
-                    content = file.read()
-
-                path = path[len(files_dir):]
-
-                File(self, path, content)
+                File(self, path, fs_path)
 
     def init(self):
         _log.info("Initializing {}".format(self))
-        
-        for path, page in sorted(self.pages_by_path.items()):
-            page.init()
+
+        if self.root_resource is None:
+            index = self.resources["/index.html"]
+
+            self.resources["/"] = index
+            self.root_resource = index
+
+        for path, resource in sorted(self.resources.items()):
+            resource.init()
 
     def start(self):
         _log.info("Starting {}".format(self))
-        
         self._session_expire_thread.start()
 
     def __call__(self, env, start_response):
         request = Request(self, env, start_response)
 
         try:
-            return self._call_with_request(request)
+            return self._do_call(request)
         except Exception as e:
             _log.exception("Unexpected error")
             return request.respond_unexpected_error(e)
 
-    def _call_with_request(self, request):
+    def _do_call(self, request):
         try:
             request.load()
         except _RequestError as e:
@@ -234,12 +232,6 @@ class Application:
 
         _log.debug("Receiving {}".format(request))
 
-        csp = "default-src: 'self'"
-        sts = "max-age=31536000"
-
-        request.add_response_header("Content-Security-Policy", csp)
-        request.add_response_header("Strict-Transport-Security", sts)
-    
         try:
             return self.receive_request(request)
         except _RequestError as e:
@@ -247,37 +239,14 @@ class Application:
             return request.respond_error(e)
         
     def receive_request(self, request):
-        path = request.path
-
         try:
-            page = self.pages_by_path[path]
-        except KeyError:
-            return self.send_response(request)
-
-        return page.receive_request(request)
-
-    def send_response(self, request):
-        return self.send_file(request)
-    
-    def send_file(self, request, path=None):
-        if path is None:
-            path = request.path
-        
-        if path == "/":
-            path = "/index.html"
-
-        try:
-            file = self.files_by_path[path]
+            resource = self.resources[request.path]
         except KeyError:
             return request.respond_not_found()
 
-        if not request.is_modified(file.etag):
-            return request.respond_not_modified()
-            
-        request.add_response_header("ETag", file.etag)
-        request.add_response_header("Cache-Control", "max-age=120")
+        request._resource = resource
 
-        return request.respond("200 OK", file.content, file.content_type)
+        return resource.receive_request(request)
 
 class Request:
     def __init__(self, app, env, start_response):
@@ -285,10 +254,11 @@ class Request:
         self._env = env
         self._start_response = start_response
 
-        self._parameters_by_name = None
+        self._parameters = None
         self._response_headers = list()
 
         self._session = None
+        self._resource = None
         self._object = None
 
     def __repr__(self):
@@ -303,8 +273,8 @@ class Request:
         return self._env
 
     @property
-    def parameters_by_name(self):
-        return self._parameters_by_name
+    def parameters(self):
+        return self._parameters
 
     @property
     def response_headers(self):
@@ -315,6 +285,10 @@ class Request:
         return self._session
 
     @property
+    def resource(self):
+        return self._resource
+
+    @property
     def object(self):
         return self._object
 
@@ -323,7 +297,7 @@ class Request:
         self._object = obj
 
     def load(self):
-        self._parameters_by_name = self._parse_query_string()
+        self._parameters = self._parse_query_string()
 
         session_id = self._parse_session_cookie()
 
@@ -382,7 +356,7 @@ class Request:
 
     def get(self, name):
         try:
-            return self.parameters_by_name[name][0]
+            return self.parameters[name][0]
         except KeyError:
             raise _RequestError("Parameter '{}' is missing".format(name))
         except IndexError:
@@ -392,6 +366,7 @@ class Request:
         client_etag = self.env.get("HTTP_IF_NONE_MATCH")
 
         if client_etag is not None and server_etag is not None:
+            client_etag = client_etag[1:-1] # Strip quotes
             return client_etag != server_etag
 
         return True
@@ -400,6 +375,12 @@ class Request:
         self.response_headers.append((name, str(value)))
     
     def respond(self, status, content=None, content_type=None):
+        csp = "default-src: 'self'"
+        sts = "max-age=31536000"
+
+        self.add_response_header("Content-Security-Policy", csp)
+        self.add_response_header("Strict-Transport-Security", sts)
+    
         if self.session is not None:
             # value = "session={}; Path=/; Secure; HttpOnly".format(self.session._id)
             value = "session={}; Path=/; HttpOnly".format(self.session._id)
@@ -467,80 +448,19 @@ class Request:
 
     def _respond_unexpected_error_fallback(self):
         content = _traceback.format_exc()
-        content_type = "text/plain"
-        
-        return self.respond("500 Internal Server Error", content, content_type)
+        return self.respond("500 Internal Server Error", content, _text)
 
 class _RequestError(Exception):
     pass
 
-class File:
-    def __init__(self, app, path, content):
+class Resource:
+    def __init__(self, app, path):
         self._app = app
         self._path = path
-        self._content = content
+        self._content_type = find_content_type(path)
 
-        name, ext = _os.path.splitext(self.path)
+        self.app.resources[self.path] = self
 
-        self._content_type = _content_types_by_extension.get(ext, _text)
-        self._etag = _hashlib.sha1(self.content).hexdigest()[:8]
-        
-        self.app.files_by_path[self.path] = self
-        
-    def __repr__(self):
-        return _format_repr(self, self.path, self.etag)
-
-    @property
-    def app(self):
-        return self._app
-
-    @property
-    def path(self):
-        return self._path
-
-    @property
-    def content(self):
-        return self._content
-
-    @property
-    def content_type(self):
-        return self._content_type
-
-    @property
-    def etag(self):
-        return self._etag
-
-    def get_href(self):
-        return self.path
-    
-    def get_link(self):
-        href = self.get_href()
-        return "<a href=\"{}\">{}</a>".format(href, xml_escape(self.path))
-
-    def decode(self, encoding="utf-8", errors="strict"):
-        return self.content.decode(encoding, errors)
-
-class Page:
-    def __init__(self, app, path, template=None, title=None, parent=None):
-        self._app = app
-        self._path = path
-        self._title = title
-        self._parent = parent
-
-        name, ext = _os.path.splitext(self.path)
-
-        self._content_type = _content_types_by_extension.get(ext, _xhtml)
-
-        self._page_template = Template(_page_template, self)
-        self._head_template = Template(_head_template, self)
-        self._body_template = None
-        self._foot_template = Template(_foot_template, self)
-
-        if template is not None:
-            self._body_template = Template(template, self)
-
-        self.app.pages_by_path[self.path] = self
-    
     def __repr__(self):
         return _format_repr(self, self.path)
 
@@ -549,14 +469,6 @@ class Page:
         return self._app
 
     @property
-    def title(self):
-        return self._title
-
-    @property
-    def parent(self):
-        return self._parent
-
-    @property
     def path(self):
         return self._path
 
@@ -564,16 +476,16 @@ class Page:
     def content_type(self):
         return self._content_type
 
+    def load(self):
+        _log.info("Loading {}".format(self))
+    
     def init(self):
-        _log.debug("Initializing {}".format(self))
+        _log.info("Initializing {}".format(self))
+    
+    def get_etag(self, request):
+        pass
 
-        if self.parent is None and self.path != "/":
-            self._parent = self.app.root_page
-
-    def receive_request(self, request):
-        return self.send_response(request)
-
-    def get_href(self, **params):
+    def get_href(self, request, **params):
         if not params:
             return self.path
         
@@ -586,12 +498,74 @@ class Page:
 
         return "{}?{}".format(self.path, query_vars)
 
-    def get_link(self, **params):
-        title = self.title
-        href = self.get_href(**params)
-
-        return "<a href=\"{}\">{}</a>".format(href, xml_escape(title))
+    def get_title(self, request):
+        return self.path
+    
+    def get_link(self, request, **params):
+        href = self.get_href(request, **params)
+        title = self.get_title(request)
         
+        return "<a href=\"{}\">{}</a>".format(href, xml_escape(title))
+
+    def receive_request(self, request):
+        self.process(request)
+        return self.send_response(request)
+
+    def send_response(self, request):
+        etag =  self.get_etag(request)
+
+        if etag is not None:
+            if not request.is_modified(etag):
+                return request.respond_not_modified()
+            
+            request.add_response_header("ETag", "\"{}\"".format(etag))
+
+        content = self.render(request)
+        content_type = self.content_type
+        
+        return request.respond_ok(content, content_type)
+
+    def process(self, request):
+        pass
+    
+    def render(self, request):
+        raise NotImplementedError()
+    
+class File(Resource):
+    def __init__(self, app, path, fs_path):
+        super().__init__(app, path)
+
+        self._fs_path = fs_path
+        self._content = None
+        self._etag = None
+
+    def get_etag(self, request):
+        return self._etag
+
+    def load(self):
+        super().load()
+
+        with open(self._fs_path, "rb") as f:
+            self._content = f.read()
+
+        self._etag = compute_etag(self._content)
+
+    def process(self, request):
+        request.add_response_header("Cache-Control", "max-age=120")
+
+    def render(self, request):
+        return self._content
+    
+class Page(Resource):
+    def __init__(self, app, path, body):
+        super().__init__(app, path)
+
+        self._content_type = _xhtml
+        self._page_template = Template(_page_template, self)
+        self._head_template = Template(_head_template, self)
+        self._body_template = Template(body, self)
+        self._foot_template = Template(_foot_template, self)
+    
     @xml
     def render(self, request):
         return self._page_template.render(request)
@@ -602,40 +576,33 @@ class Page:
 
     @xml
     def render_body(self, request):
-        if self._body_template is not None:
-            return self._body_template.render(request)
+        return self._body_template.render(request)
 
     @xml
     def render_foot(self, request):
         return self._foot_template.render(request)
 
     def render_title(self, request):
-        return self.title
+        return self.get_title(request)
 
     @xml
     def render_path_navigation(self, request):
-        links = list()
-        page = self
+        links = self.get_path_links(request)
 
-        links.append(page.render_title(request))
-        page = page.parent
-
-        while page is not None:
-            links.append(page.get_link())
-            page = page.parent
-
-        items = ["<li>{}</li>".format(x) for x in reversed(links)]
+        items = ["<li>{}</li>".format(x) for x in links]
         items = "".join(items)
         
         return "<ul id=\"-path-navigation\">{}</ul>".format(items)
+
+    def get_path_links(self, request):
+        if self is self.app.root_resource:
+            return [self.get_title(request)]
+        
+        return [self.app.root_resource.get_link(request), self.get_title(request)]
     
     @xml
     def render_global_navigation(self, request):
         return "<ul id=\"-global-navigation\"></ul>"
-
-    def send_response(self, request):
-        content = self.render(request)
-        return request.respond_ok(content, self.content_type)
 
 class Template:
     @staticmethod
@@ -709,16 +676,15 @@ class Template:
         return "".join(out)
 
 class FilePage(Page):
-    def __init__(self, app, path, file_path, title=None, parent=None):
-        super().__init__(app, path, title=title, parent=parent)
+    def __init__(self, app, path, file_path):
+        super().__init__(app, path, "{file_content}")
 
         self._file_path = file_path
 
-    def init(self):
-        super().init()
-
-        file = self.app.files_by_path[self._file_path]
-        self._body_template = Template(file.decode(), self)
+    @xml
+    def render_file_content(self, request):
+        file = self.app.resources[self._file_path]
+        return file.render(request).decode()
 
 class ObjectPage(Page):
     def receive_request(self, request):
@@ -727,10 +693,12 @@ class ObjectPage(Page):
         except ObjectNotFound as e:
             return request.respond_not_found()
 
+        assert request.object is not None
+
         return self.send_response(request)
 
     def get_object(self, request):
-        pass
+        raise NotImplementedError()
     
     def get_object_name(self, request, obj):
         if hasattr(obj, "name"):
@@ -741,12 +709,8 @@ class ObjectPage(Page):
             return obj.id
 
     def get_object_href(self, request, obj):
-        key = self.get_object_id(request, obj)
-        return self.get_href(id=key)
-
-    def get_object_parent(self, request, obj):
-        if hasattr(obj, "parent"):
-            return obj.parent
+        id = self.get_object_id(request, obj)
+        return self.get_href(request, id=id)
 
     def get_object_link(self, request, obj):
         name = self.get_object_name(request, obj)
@@ -754,61 +718,48 @@ class ObjectPage(Page):
 
         return "<a href=\"{}\">{}</a>".format(href, xml_escape(name))
 
-    def render_title(self, request):
-        if request.object is not None:
-            return self.get_object_name(request, request.object)
-
-        super().render_title(request)
+    def get_title(self, request):
+        return self.get_object_name(request, request.object)
 
 class ObjectNotFound(Exception):
     pass
     
-class _SitePage(Page):
+class _SiteInfoPage(Page):
     template = """
     <h1>{title}</h1>
-    <h2>Pages</h2>
-    {pages}
-    <h2>Files</h2>
-    {files}
+    <h2>Resources</h2>
+    {resources}
     """
 
-    def __init__(self, app, path, title="Site info", parent=None):
-        super().__init__(app, path, self.template, title=title, parent=parent)
+    def __init__(self, app, path):
+        super().__init__(app, path, self.template)
 
+    def get_title(self, request):
+        return "Site info"
+        
     @xml
-    def render_pages(self, request):
+    def render_resources(self, request):
         items = list()
         
-        for path, page in sorted(self.app.pages_by_path.items()):
-            if page is self.app._error_page:
-                continue
-            
-            items.append(page.get_link())
-
-        items = "".join(["<li>{}</li>".format(x) for x in items])
-            
-        return "<ul>{}</ul>".format(items)
-
-    @xml
-    def render_files(self, request):
-        items = list()
-        
-        for path, file in sorted(self.app.files_by_path.items()):
-            items.append(file.get_link())
+        for path, resource in sorted(self.app.resources.items()):
+            items.append(resource.get_link(request))
 
         items = "".join(["<li>{}</li>".format(x) for x in items])
             
         return "<ul>{}</ul>".format(items)
     
-class _RequestPage(Page):
+class _RequestInfoPage(Page):
     def __init__(self, app, path):
-        super().__init__(app, path, title="Request info")
+        super().__init__(app, path, "{request_info}")
 
-        self.request_info = _RequestInfo()
+        self._request_info = _RequestInfo()
 
+    def get_title(self, request):
+        return "Request info"
+        
     @xml
-    def render_body(self, request):
-        return self.request_info.render(request)
+    def render_request_info(self, request):
+        return self._request_info.render(request)
 
 class _ErrorPage(Page):
     template = """
@@ -818,10 +769,13 @@ class _ErrorPage(Page):
     """
 
     def __init__(self, app):
-        super().__init__(app, "/error", self.template, title="Error!")
+        super().__init__(app, "/error", self.template)
 
         self._request_info = _RequestInfo()
 
+    def get_title(self, request):
+        return "Error!"
+        
     def render_title(self, request):
         return request.error_title
         
@@ -861,9 +815,9 @@ class _RequestInfo(Template):
 
         for name, value in attrs:
             value = _pprint.pformat(value)
-            value = value.replace("\n", "\n{}".format(" " * 26))
+            value = value.replace("\n", "\n{}".format(" " * 24))
 
-            lines.append("{:24}  {}".format(name, value))
+            lines.append("{:22}  {}".format(name, value))
 
         return "<pre>{}</pre>".format(xml_escape("\n".join(lines)))
 
@@ -882,8 +836,9 @@ class _RequestInfo(Template):
             ("request.app", request.app),
             ("request.method", request.method),
             ("request.path", request.path),
-            ("request.parameters_by_name", request.parameters_by_name),
-            ("request.response_headers", request.response_headers),
+            ("request.parameters", request.parameters),
+            ("request.session", request.session),
+            ("request.resource", request.resource),
             ("request.object", request.object),
         )
         
@@ -895,9 +850,8 @@ class _RequestInfo(Template):
             ("app.spec", request.app.spec),
             ("app.home", request.app.home),
             ("app.brbn_home", request.app.brbn_home),
-            ("app.files_by_path", request.app.files_by_path),
-            ("app.pages_by_path", request.app.pages_by_path),
-            ("app.root_page", request.app.root_page),
+            ("app.resources", request.app.resources),
+            ("app.root_resource", request.app.root_resource),
         )
 
         return self._render_attributes(attrs)
@@ -909,11 +863,7 @@ class _RequestInfo(Template):
             ("sys.executable", _sys.executable),
             ("sys.path", _sys.path),
             ("sys.version", _sys.version),
-            ("sys.prefix", _sys.prefix),
-            ("sys.exec_prefix", _sys.exec_prefix),
             ("sys.platform", _sys.platform),
-            ("sys.defaultencoding", _sys.getdefaultencoding()),
-            ("sys.filesystemencoding", _sys.getfilesystemencoding()),
         )
 
         return self._render_attributes(attrs)
@@ -925,6 +875,9 @@ class Session:
         self._touched = _datetime.datetime.now()
 
         self.app._sessions_by_id[self._id] = self
+
+    def __repr__(self):
+        return _format_repr(self, self._id[:8])
 
     @property
     def app(self):
@@ -981,35 +934,42 @@ class Server:
             raise Error(msg)
 
         _IOLoop.current().start()
-        
+
+def compute_etag(content):
+    return _hashlib.sha1(content).hexdigest()[:8]
+
+def find_content_type(path, default=_text):
+    name, ext = _os.path.splitext(path)
+    return _content_types_by_extension.get(ext, default)
+
 def _format_repr(obj, *args):
     cls = obj.__class__.__name__
     strings = [str(x) for x in args]
     return "{}({})".format(cls, ",".join(strings))
 
 class Hello(Application):
-    template = """
-    <h1>{title}</h1>
-    <p>I am Brbn.</p>
-    <p><a href="/nope.html">404!</a> <a href="/explode.html">500!</a></p>
-    {request_info}
-    """
-
     def __init__(self, home):
         super().__init__(home)
 
-        self.root_page = _HelloPage(self)
-        self.site_page = _SitePage(self, "/site")
-        self.request_page = _RequestPage(self, "/request")
+        self.root_resource = _HelloPage(self)
+        self.site_page = _SiteInfoPage(self, "/site")
+        self.request_page = _RequestInfoPage(self, "/request")
         self.explode_page = _ExplodePage(self)
 
 class _HelloPage(FilePage):
     def __init__(self, app):
-        super().__init__(app, "/", "/hello.in", title="Brbn")
+        super().__init__(app, "/", "/hello.in")
+
+    def get_title(self, request):
+        return "Brbn"
        
 class _ExplodePage(Page):
     def __init__(self, app):
-        super().__init__(app, "/explode", title="Explode!")
+        super().__init__(app, "/explode", "{explode}")
 
-    def render_body(self, request):
+    def get_title(self, request):
+        return "Explode!"
+
+    @xml
+    def render_explode(self, request):
         raise Exception("Exploding!")
