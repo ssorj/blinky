@@ -27,8 +27,6 @@ import time as _time
 
 _log = _logging.getLogger("blinky.brbn")
 
-_http_date = "%a, %d %b %Y %H:%M:%S %Z"
-
 class Blinky(_brbn.Application):
     def __init__(self, home, model):
         super().__init__(home)

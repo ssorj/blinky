@@ -17,10 +17,6 @@
 # under the License.
 #
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from faller import logger
 
 import collections as _collections
@@ -210,7 +206,7 @@ class Agent(_ModelObject):
         self.jobs = list()
 
     def update(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def render_data(self):
         data = super().render_data()
@@ -261,10 +257,10 @@ class Job(_ModelObject):
             self.results.append(result)
 
     def fetch_data(self, context):
-        raise NotImplemented()
+        raise NotImplementedError()
         
     def convert_result(self, data):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @property
     def current_result(self):
