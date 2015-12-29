@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>Blinky</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="stylesheet" href="site.css" type="text/css"/>
+    <script type="text/javascript" src="site.js"></script>    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sortable/0.8.0/js/sortable.min.js"></script>
+    <script>
+      "use strict";
+      window.addEventListener("load", blinky.updateTable);
+      Sortable.init();
+      // XXX Disabled because the user's sort is lost on update      
+      // window.setInterval(blinky.updateTable, blinky.updateInterval);
+    </script>
+  </head>
+  <body>
+    <h1>Blinky</h1>
+    <table data-sortable="data-sortable">
+      <thead>
+        <tr>
+          <th>Job</th>
+          <th>Component</th>
+          <th>Environment</th>
+          <th>Test</th>
+          <th>Time</th>
+          <th>Duration</th>
+          <th>Number</th>
+          <th>Status</th>
+          <th>Prev status</th>
+          <th>Group</th>
+          <th>Agent</th>
+        </tr>
+      </thead>
+      <tbody id="content"></tbody>
+    </table>
+    <p><a href="index.html">Panel view</a> | <a href="data.html">Source data</a></p>
+  </body>
+</html>

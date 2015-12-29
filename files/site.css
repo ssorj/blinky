@@ -51,6 +51,15 @@ a {
     text-decoration: none;
 }
 
+td, th {
+    text-align: left;
+    padding: 0.1em 0.3em 0.1em 0;
+}
+
+th {
+    cursor: pointer;
+}
+
 div.result-container {
     display: flex;
     flex-flow: row wrap;

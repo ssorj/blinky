@@ -42,7 +42,7 @@ class Model:
 
     def __repr__(self):
         cls = self.__class__.__name__
-        return "{}({})".format(cls, id(self))
+        return "{}()".format(cls)
 
     def render_data(self):
         data = dict()
@@ -275,6 +275,7 @@ class Job(_ModelObject):
     def render_data(self):
         data = super().render_data()
 
+        data["agent_id"] = self.agent.id
         data["test_id"] = self.test.id
         data["environment_id"] = self.environment.id
         data["url"] = self.url
@@ -332,66 +333,3 @@ class HttpJob(Job):
         data = response.json()
 
         return data
-
-def _print_model(model):
-    for test_group in model.test_groups:
-        print(test_group.name)
-        print()
-            
-        for component in model.components:
-            tests = component.tests_by_test_group[test_group]
-
-            for test in tests:
-                if test.name is None:
-                    print(component.name)
-                else:
-                    print("{} - {}".format(component.name, test.name))
-                
-                for job in test.jobs:
-                    _print_job(job)
-
-        print()
-
-def _print_job(job):
-    name = job.environment.name
-    current = _format_result(job.current_result)
-    previous = _format_result(job.previous_result)
-    
-    print("  {:18}  {:18}  {:18}".format(name, current, previous))
-
-def _format_result(result):
-    if result is None:
-        return "-"
-
-    if result.timestamp is None:
-        seconds_ago = "-"
-    else:
-        seconds_ago = int(_time.time() - result.timestamp / 1000)
-        seconds_ago = _format_duration(seconds_ago)
-
-    return "{} {}".format(result.status, seconds_ago)
-
-_minute = 60
-_hour = _minute * 60
-_day = _hour * 24
-_week = _day * 7
-
-def _format_duration(seconds):
-    minutes = int(seconds / _minute)
-    hours = int(seconds / _hour)
-    days = int(seconds / _day)
-    weeks = int(seconds / _week)
-
-    if weeks >= 2:
-        return "{:2}w".format(weeks)
-
-    if days >= 2:
-        return "{:2}d".format(days)
-
-    if hours >= 1:
-        return "{:2}h".format(hours)
-
-    if minutes >= 1:
-        return "{:2}m".format(minutes)
-
-    return "{:2}s".format(seconds)

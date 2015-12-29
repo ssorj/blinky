@@ -5,13 +5,27 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <link rel="stylesheet" href="site.css" type="text/css"/>
-    <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/styles/default.min.css"/>
-    <script type="text/javascript" src="site.js"></script>    
-    <script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/styles/default.min.css"/>
+    <script src="site.js"></script>    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/highlight.min.js"></script>
     <script>
       "use strict";
+
+      var qs = window.location.search;
+      var source = "data.json";
+      var proxy = source;
+
+      if (qs) {
+          source = decodeURIComponent(qs.substring(8));
+          proxy = "data.json?source=" + encodeURIComponent(source);
+      }
+      
       window.addEventListener("load", function(event) {
-          blinky.sendRequest("data.json", function(request) {
+          var link = $("#source-link");
+          link.setAttribute("href", source);
+          link.textContent = source;
+      
+          blinky.sendRequest(proxy, function(request) {
               var text = request.responseText;
               text = hljs.highlight("json", text).value;
               $("#content").innerHTML = text;
@@ -20,8 +34,8 @@
     </script>
   </head>
   <body>
-    <p><a href="data.json">Unadulterated JSON</a></p>
+    <p><a id="source-link" href=""></a></p>
     
-    <pre id="content" class="json"></pre>
+    <pre id="content" class="json">[Loading]</pre>
   </body>
 </html>

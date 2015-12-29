@@ -27,13 +27,15 @@ var $ = function(selectors) {
 
 var blinky = {
     etag: null,
-    
+    updateInterval: 10000,
+
     sendRequest: function(url, handler) {
         var request = new XMLHttpRequest();
         
         request.onreadystatechange = function() {
             if (request.readyState == 4 && request.status == 200) {
                 handler(request);
+                blinky.etag = request.getResponseHeader("ETag");
             }
         };
 
@@ -82,15 +84,13 @@ var blinky = {
         return Math.floor(seconds) + "s";
     },
 
-    renderContent: function(request) {
+    renderLights: function(request) {
         var data = JSON.parse(request.responseText);
 
         var oldContent = $("#content");
         var newContent = document.createElement("div");
         newContent.setAttribute("id", "content");
         
-        blinky.etag = request.getResponseHeader("ETag");
-
         var testGroups = data["test_groups"];
         
         for (var testGroupId in testGroups) {
@@ -238,8 +238,76 @@ var blinky = {
         th.textContent = name;
         td.textContent = value;
     },
+
+    renderTable: function(request) {
+        var data = JSON.parse(request.responseText);
+
+        var oldContent = $("#content");
+        var newContent = document.createElement("tbody");
+        newContent.setAttribute("id", "content");
+
+        var secondsNow = new Date().getTime() / 1000;
+        
+        for (var jobId in data["jobs"]) {
+            var job = data["jobs"][jobId];
+            var currentResult = job["current_result"];
+            var previousResult = job["previous_result"];
+            var test = data["tests"][job["test_id"]]
+            var testGroup = data["test_groups"][test["test_group_id"]]
+            var component = data["components"][test["component_id"]]
+            var environment = data["environments"][job["environment_id"]]
+            var agent = data["agents"][job["agent_id"]]
+
+            var time = "-";
+            var duration = "-";
+            var number = "-"
+            var status = "-"
+            var previousStatus = "-";
+            
+            if (currentResult !== null) {
+                time = blinky.formatDuration(secondsNow - currentResult.timestamp);
+                duration = blinky.formatDuration(currentResult.duration);
+                number = currentResult.number;
+                status = currentResult.status;
+            }
+
+            if (previousResult !== null) {
+                previousStatus = previousResult.status;
+            }
+
+            var tr = blinky.createChild(newContent, "tr");
+            var td = null;
+            var link = null;
+            
+            td = blinky.createChild(tr, "td");
+            link = blinky.createChild(td, "a");
+            link.setAttribute("href", "data.html?source=" + encodeURIComponent(job.url));
+            link.textContent = job.name;
+            
+            blinky.createChild(tr, "td").textContent = component.name;
+            blinky.createChild(tr, "td").textContent = environment.name;
+            blinky.createChild(tr, "td").textContent = test.name ? test.name : "Main";
+            blinky.createChild(tr, "td").textContent = time;
+            blinky.createChild(tr, "td").textContent = duration;
+            blinky.createChild(tr, "td").textContent = number;
+            blinky.createChild(tr, "td").textContent = status;
+            blinky.createChild(tr, "td").textContent = previousStatus;
+            blinky.createChild(tr, "td").textContent = testGroup.name;
+
+            td = blinky.createChild(tr, "td");
+            link = blinky.createChild(td, "a");
+            link.setAttribute("href", "data.html?source=" + encodeURIComponent(agent.url));
+            link.textContent = agent.name;
+        }
+        
+        oldContent.parentNode.replaceChild(newContent, oldContent);
+    },
     
-    updateContent: function() {
-        blinky.sendRequest("data.json", blinky.renderContent);
+    updateLights: function() {
+        blinky.sendRequest("data.json", blinky.renderLights);
+    }, 
+
+    updateTable: function() {
+        blinky.sendRequest("data.json", blinky.renderTable);
     }
 };

@@ -5,16 +5,16 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <link rel="stylesheet" href="site.css" type="text/css"/>
-    <script type="text/javascript" src="site.js"></script>    
+    <script src="site.js"></script>    
+    <script>
+      "use strict";
+      window.addEventListener("load", blinky.updateLights);
+      window.setInterval(blinky.updateLights, blinky.updateInterval);
+    </script>
   </head>
   <body>
     <h1>Blinky</h1>
     <div id="content"></div>
-    <script type="text/javascript">
-      "use strict";
-      window.addEventListener("load", blinky.updateContent);
-      window.setInterval(blinky.updateContent, 10000);
-    </script>
-    <p><a href="data.html">Source data</a></p>
+    <p><a href="table.html">Table view</a> | <a href="data.html">Source data</a></p>
   </body>
 </html>

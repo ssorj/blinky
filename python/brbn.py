@@ -127,6 +127,18 @@ def xml_unescape(string):
 
     return _xml_unescape(string)
 
+def compute_etag(content):
+    return _hashlib.sha1(content).hexdigest()[:8]
+
+def find_content_type(path, default=_text):
+    name, ext = _os.path.splitext(path)
+    return _content_types_by_extension.get(ext, default)
+
+def _format_repr(obj, *args):
+    cls = obj.__class__.__name__
+    strings = [str(x) for x in args]
+    return "{}({})".format(cls, ",".join(strings))
+
 class Error(Exception):
     pass
 
@@ -202,11 +214,15 @@ class Application:
         _log.info("Initializing {}".format(self))
 
         if self.root_resource is None:
-            index = self.resources["/index.html"]
+            index = self.resources.get("/index.html")
 
-            self.resources["/"] = index
-            self.root_resource = index
+            if index is not None:
+                self.resources["/"] = index
+                self.root_resource = index
 
+        if self.root_resource is None:
+            raise Error("I can't find a root resource")
+                
         for path, resource in sorted(self.resources.items()):
             resource.init()
 
@@ -354,13 +370,13 @@ class Request:
     def path(self):
         return self.env["PATH_INFO"]
 
-    def get(self, name):
+    def get(self, name, default=None):
         try:
             return self.parameters[name][0]
         except KeyError:
-            raise _RequestError("Parameter '{}' is missing".format(name))
+            return default
         except IndexError:
-            raise _RequestError("Parameter '{}' has no values".format(name))
+            return default
         
     def is_modified(self, server_etag):
         client_etag = self.env.get("HTTP_IF_NONE_MATCH")
@@ -934,18 +950,6 @@ class Server:
             raise Error(msg)
 
         _IOLoop.current().start()
-
-def compute_etag(content):
-    return _hashlib.sha1(content).hexdigest()[:8]
-
-def find_content_type(path, default=_text):
-    name, ext = _os.path.splitext(path)
-    return _content_types_by_extension.get(ext, default)
-
-def _format_repr(obj, *args):
-    cls = obj.__class__.__name__
-    strings = [str(x) for x in args]
-    return "{}({})".format(cls, ",".join(strings))
 
 class Hello(Application):
     def __init__(self, home):

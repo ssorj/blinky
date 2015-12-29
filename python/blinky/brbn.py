@@ -22,6 +22,7 @@ import datetime as _datetime
 import json as _json
 import logging as _logging
 import os as _os
+import requests as _requests
 import sys as _sys
 import time as _time
 
@@ -37,8 +38,22 @@ class Blinky(_brbn.Application):
 
 class _Data(_brbn.Resource):
     def get_etag(self, request):
+        if request.get("source") is not None:
+            return
+        
         return str(self.app.model.update_time)
     
     def render(self, request):
-        data = self.app.model.render_data()
-        return _json.dumps(data, indent=4, separators=(", ", ": "))
+        source = request.get("source")
+
+        if source is None:
+            data = self.app.model.render_data()
+        else:
+            response = _requests.get(source)
+
+            try:
+                data = response.json()
+            except:
+                return response.text;
+        
+        return _json.dumps(data, indent=4, separators=(", ", ": "), sort_keys=True)
