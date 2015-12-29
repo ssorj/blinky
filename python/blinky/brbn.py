@@ -35,25 +35,20 @@ class Blinky(_brbn.Application):
         self.model = model
 
         _Data(self, "/data.json")
+        _Proxy(self, "/proxy")
 
 class _Data(_brbn.Resource):
     def get_etag(self, request):
-        if request.get("source") is not None:
-            return
-        
-        return str(self.app.model.update_time)
+        return self.app.model.json_digest
     
     def render(self, request):
-        source = request.get("source")
+        return self.app.model.json
 
-        if source is None:
-            data = self.app.model.render_data()
-        else:
-            response = _requests.get(source)
-
-            try:
-                data = response.json()
-            except:
-                return response.text;
-        
-        return _json.dumps(data, indent=4, separators=(", ", ": "), sort_keys=True)
+class _Proxy(_brbn.Resource):
+    def get_content_type(self, request):
+        url = request.require("url")
+        return _brbn.find_content_type(url)
+    
+    def render(self, request):
+        url = request.require("url")
+        return _requests.get(url).text

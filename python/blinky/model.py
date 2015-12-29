@@ -21,6 +21,8 @@ from faller import logger
 
 import collections as _collections
 import datetime as _datetime
+import json as _json
+import hashlib as _hashlib
 import pprint as _pprint
 import requests as _requests
 import threading as _threading
@@ -39,6 +41,9 @@ class Model:
         self.tests = list()
         self.agents = list()
         self.jobs = list()
+
+        self.json = None
+        self.json_digest = None
 
     def __repr__(self):
         cls = self.__class__.__name__
@@ -93,6 +98,17 @@ class Model:
 
         self.update_time = _datetime.datetime.utcnow()
 
+        data = self.render_data()
+
+        prev_json = self.json or ""
+        prev_digest = self.json_digest or "-"
+        
+        self.json = _json.dumps(data, sort_keys=True).encode("utf-8")
+        self.json_digest = _hashlib.sha1(self.json).hexdigest()
+
+        _log.info("Prev json: {} {}".format(prev_digest, len(prev_json)))
+        _log.info("Curr json: {} {}".format(self.json_digest, len(self.json)))
+        
         _log.info("Updated at {}".format(self.update_time))
 
 class _ModelUpdateThread(_threading.Thread):

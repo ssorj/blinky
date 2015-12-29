@@ -377,6 +377,14 @@ class Request:
             return default
         except IndexError:
             return default
+
+    def require(self, name):
+        try:
+            return self.parameters[name][0]
+        except KeyError:
+            raise _RequestError("Parameter '{}' is missing".format(name))
+        except IndexError:
+            raise _RequestError("Parameter '{}' has no values".format(name))        
         
     def is_modified(self, server_etag):
         client_etag = self.env.get("HTTP_IF_NONE_MATCH")
@@ -488,16 +496,15 @@ class Resource:
     def path(self):
         return self._path
 
-    @property
-    def content_type(self):
-        return self._content_type
-
     def load(self):
         _log.info("Loading {}".format(self))
     
     def init(self):
         _log.info("Initializing {}".format(self))
     
+    def get_content_type(self, request):
+        return self._content_type
+
     def get_etag(self, request):
         pass
 
@@ -537,7 +544,7 @@ class Resource:
             request.add_response_header("ETag", "\"{}\"".format(etag))
 
         content = self.render(request)
-        content_type = self.content_type
+        content_type = self.get_content_type(request)
         
         return request.respond_ok(content, content_type)
 
@@ -805,8 +812,9 @@ class _ErrorPage(Page):
     def send_response(self, request):
         status = request.error_status
         content = self.render(request)
+        content_type = self.get_content_type(request)
         
-        return request.respond(status, content, self.content_type)
+        return request.respond(status, content, content_type)
 
 class _RequestInfo(Template):
     template = """

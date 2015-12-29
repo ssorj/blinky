@@ -12,18 +12,13 @@
       "use strict";
 
       var qs = window.location.search;
-      var source = "data.json";
-      var proxy = source;
-
-      if (qs) {
-          source = decodeURIComponent(qs.substring(8));
-          proxy = "data.json?source=" + encodeURIComponent(source);
-      }
+      var url = decodeURIComponent(qs.substring(5));
+      var proxy = "proxy?url=" + encodeURIComponent(url);
       
       window.addEventListener("load", function(event) {
-          var link = $("#source-link");
-          link.setAttribute("href", source);
-          link.textContent = source;
+          var link = $("#link");
+          link.setAttribute("href", url);
+          link.textContent = url;
       
           blinky.sendRequest(proxy, function(request) {
               var text = request.responseText;
@@ -34,8 +29,8 @@
     </script>
   </head>
   <body>
-    <p><a id="source-link" href=""></a></p>
+    <p><a id="link" href=""></a></p>
     
-    <pre id="content" class="json">[Loading]</pre>
+    <pre id="content" class="json">[Loading...]</pre>
   </body>
 </html>

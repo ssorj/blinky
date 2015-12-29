@@ -281,7 +281,7 @@ var blinky = {
             
             td = blinky.createChild(tr, "td");
             link = blinky.createChild(td, "a");
-            link.setAttribute("href", "data.html?source=" + encodeURIComponent(job.url));
+            link.setAttribute("href", "pretty.html?url=" + encodeURIComponent(job.url));
             link.textContent = job.name;
             
             blinky.createChild(tr, "td").textContent = component.name;
@@ -296,7 +296,7 @@ var blinky = {
 
             td = blinky.createChild(tr, "td");
             link = blinky.createChild(td, "a");
-            link.setAttribute("href", "data.html?source=" + encodeURIComponent(agent.url));
+            link.setAttribute("href", "pretty.html?url=" + encodeURIComponent(agent.url));
             link.textContent = agent.name;
         }
         
