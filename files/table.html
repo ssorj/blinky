@@ -17,24 +17,23 @@
   </head>
   <body>
     <h1>Blinky</h1>
-    <table data-sortable="data-sortable">
+
+    <table class="jobs" data-sortable="data-sortable">
       <thead>
         <tr>
-          <th>Job</th>
           <th>Component</th>
           <th>Environment</th>
-          <th>Test</th>
-          <th>Time</th>
-          <th>Duration</th>
-          <th>Number</th>
+          <th>Job</th>
+          <th>Agent</th>
+          <th data-sortable-type="numeric">Time</th>
+          <th data-sortable-type="numeric">Duration</th>
+          <th data-sortable-type="numeric">Number</th>
           <th>Status</th>
           <th>Prev status</th>
-          <th>Group</th>
-          <th>Agent</th>
         </tr>
       </thead>
       <tbody id="content"></tbody>
     </table>
-    <p><a href="index.html">Panel view</a> | <a href="data.html">Source data</a></p>
+    <p><a href="index.html">Panel view</a> | <a href="pretty.html?url=/data.json">Source data</a></p>
   </body>
 </html>

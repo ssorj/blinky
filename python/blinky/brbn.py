@@ -51,4 +51,8 @@ class _Proxy(_brbn.Resource):
     
     def render(self, request):
         url = request.require("url")
+
+        if url == "/data.json":
+            return self.app.resources[url].render(request)
+        
         return _requests.get(url).text

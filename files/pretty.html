@@ -22,7 +22,11 @@
       
           blinky.sendRequest(proxy, function(request) {
               var text = request.responseText;
+              var obj = JSON.parse(text);
+      
+              text = JSON.stringify(obj, null, 4);
               text = hljs.highlight("json", text).value;
+              
               $("#content").innerHTML = text;
           });
       });

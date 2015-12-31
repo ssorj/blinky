@@ -17,28 +17,27 @@
 # under the License.
 #
 
-from faller import logger
-
 import collections as _collections
 import datetime as _datetime
 import json as _json
 import hashlib as _hashlib
+import logging as _logging
+import pencil as _pencil
 import pprint as _pprint
 import requests as _requests
 import threading as _threading
 import time as _time
 
-_log = logger("blinky.model")
+_log = _logging.getLogger("blinky.model")
 
 class Model:
     def __init__(self):
         self.update_thread = _ModelUpdateThread(self)
         self.update_time = None
         
-        self.test_groups = list()
+        self.groups = list()
         self.components = list()
         self.environments = list()
-        self.tests = list()
         self.agents = list()
         self.jobs = list()
 
@@ -46,8 +45,7 @@ class Model:
         self.json_digest = None
 
     def __repr__(self):
-        cls = self.__class__.__name__
-        return "{}()".format(cls)
+        return _pencil.format_repr(self)
 
     def render_data(self):
         data = dict()
@@ -60,24 +58,20 @@ class Model:
 
         data["update_timestamp"] = time
         
-        test_groups_data = data["test_groups"] = dict()
+        groups_data = data["groups"] = dict()
         components_data = data["components"] = dict()
         environments_data = data["environments"] = dict()
-        tests_data = data["tests"] = dict()
         agents_data = data["agents"] = dict()
         jobs_data = data["jobs"] = dict()
         
-        for test_group in self.test_groups:
-            test_groups_data[test_group.id] = test_group.render_data()
+        for group in self.groups:
+            groups_data[group.id] = group.render_data()
 
         for component in self.components:
             components_data[component.id] = component.render_data()
 
         for environment in self.environments:
             environments_data[environment.id] = environment.render_data()
-
-        for test in self.tests:
-            tests_data[test.id] = test.render_data()
 
         for agent in self.agents:
             agents_data[agent.id] = agent.render_data()
@@ -134,91 +128,50 @@ class _ModelUpdateThread(_threading.Thread):
                 _log.exception("Unexpected error")
 
 class _ModelObject:
-    def __init__(self, model, collection):
+    def __init__(self, model, collection, name):
         assert isinstance(model, Model), model
         assert isinstance(collection, list), collection
+        assert isinstance(name, str), name
         
         self.model = model
-
         self.id = len(collection)
-        # XXX self.id = "{:04}".format(self.id)
+        self.name = name
 
-        self.name = None
-        
         collection.append(self)
 
     def __repr__(self):
-        cls = self.__class__.__name__
-        return "{}({},{})".format(cls, self.id, self.name)
+        return _pencil.format_repr(self, self.id, self.name)
 
     def render_data(self):
         data = dict()
         data["id"] = self.id
-
-        if hasattr(self, "name"):
-            data["name"] = self.name
-
-        if hasattr(self, "tests"):
-            data["test_ids"] = [x.id for x in self.tests]
+        data["name"] = self.name
+            
+        if hasattr(self, "jobs"):
+            data["job_ids"] = [x.id for x in self.jobs]
         
         return data
         
-class TestGroup(_ModelObject):
+class Group(_ModelObject):
     def __init__(self, model, name):
-        super().__init__(model, model.test_groups)
-
-        self.name = name
-        
-        self.tests = list()
-        self.tests_by_component = _collections.defaultdict(list)
+        super().__init__(model, model.groups, name)
+        self.jobs = list()
         
 class Component(_ModelObject):
     def __init__(self, model, name):
-        super().__init__(model, model.components)
-
-        self.name = name
-
-        self.tests = list()
-        self.tests_by_test_group = _collections.defaultdict(list)
+        super().__init__(model, model.components, name)
+        self.jobs = list()
 
 class Environment(_ModelObject):
     def __init__(self, model, name):
-        super().__init__(model, model.environments)
-
-        self.name = name
-
-class Test(_ModelObject):
-    def __init__(self, model, test_group, component, name=None):
-        super().__init__(model, model.tests)
-
-        self.name = name
-        self.test_group = test_group
-        self.component = component
-
+        super().__init__(model, model.environments, name)
         self.jobs = list()
-        
-        self.test_group.tests.append(self)
-        self.test_group.tests_by_component[self.component].append(self)
-
-        self.component.tests.append(self)
-        self.component.tests_by_test_group[self.test_group].append(self)
-
-    def render_data(self):
-        data = super().render_data()
-
-        data["test_group_id"] = self.test_group.id
-        data["component_id"] = self.component.id
-        data["job_ids"] = [x.id for x in self.jobs]
-
-        return data
 
 class Agent(_ModelObject):
     def __init__(self, model, name, url):
-        super().__init__(model, model.agents)
+        super().__init__(model, model.agents, name)
 
-        self.name = name
         self.url = url
-
         self.jobs = list()
 
     def update(self):
@@ -226,29 +179,31 @@ class Agent(_ModelObject):
 
     def render_data(self):
         data = super().render_data()
-
-        data["name"] = self.name
         data["url"] = self.url
-        data["job_ids"] = [x.id for x in self.jobs]
 
         return data
     
 class Job(_ModelObject):
-    def __init__(self, model, agent, test, environment):
-        super().__init__(model, model.jobs)
+    def __init__(self, model, group, component, environment, agent, name):
+        super().__init__(model, model.jobs, name)
 
-        assert isinstance(agent, Agent), agent
-        assert isinstance(test, Test), test
+        assert isinstance(group, Group), group
+        assert isinstance(component, Component), component
         assert isinstance(environment, Environment), environment
-        
-        self.agent = agent
-        self.test = test
+        assert isinstance(agent, Agent), agent
+        assert isinstance(name, str), name
+
+        self.group = group
+        self.component = component
         self.environment = environment
+        self.agent = agent
+
+        self.group.jobs.append(self)
+        self.component.jobs.append(self)
+        self.environment.jobs.append(self)
+        self.agent.jobs.append(self)
 
         self.results = _collections.deque(maxlen=2)
-
-        self.agent.jobs.append(self)
-        self.test.jobs.append(self)
 
     def update(self, context):
         try:
@@ -291,9 +246,10 @@ class Job(_ModelObject):
     def render_data(self):
         data = super().render_data()
 
-        data["agent_id"] = self.agent.id
-        data["test_id"] = self.test.id
+        data["group_id"] = self.group.id
+        data["component_id"] = self.component.id
         data["environment_id"] = self.environment.id
+        data["agent_id"] = self.agent.id
         data["url"] = self.url
 
         data["previous_result"] = None
@@ -311,7 +267,7 @@ class Job(_ModelObject):
         data = self.render_data()
         _pprint.pprint(data)
 
-class TestResult:
+class JobResult:
     def __init__(self):
         self.number = None
         self.status = None

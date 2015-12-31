@@ -17,30 +17,28 @@
 # under the License.
 #
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from .model import *
 
+import logging as _logging
 import requests as _requests
 
-_log = logger("blinky.jenkins")
+_log = _logging.getLogger("blinky.jenkins")
 
 class JenkinsAgent(HttpAgent):
     pass
 
 class JenkinsJob(HttpJob):
-    def __init__(self, model, agent, test, environment, name):
-        super().__init__(model, agent, test, environment)
+    def __init__(self, model, group, component, environment, agent, name,
+                 slug):
+        super().__init__(model, group, component, environment, agent, name)
 
-        self.name = name
-
-        args = self.agent.url, self.name
+        self.slug = slug
+        
+        args = self.agent.url, self.slug
         self.url = "{}/job/{}/lastBuild/api/json".format(*args)
 
     def convert_result(self, data):
-        result = TestResult()
+        result = JobResult()
         result.number = data["number"]
         result.status = data["result"]
         result.timestamp = data["timestamp"] / 1000.0

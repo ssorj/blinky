@@ -91,66 +91,58 @@ var blinky = {
         var newContent = document.createElement("div");
         newContent.setAttribute("id", "content");
         
-        var testGroups = data["test_groups"];
+        var groups = data.groups;
         
-        for (var testGroupId in testGroups) {
-            var testGroup = testGroups[testGroupId];
+        for (var groupId in groups) {
+            var group = groups[groupId];
 
             var groupElem = blinky.createChild(newContent, "div");
-            groupElem.setAttribute("class", "test-group");
+            groupElem.setAttribute("class", "group");
             
             var h2 = blinky.createChild(groupElem, "h2");
-            h2.textContent = testGroup.name;
+            h2.textContent = group.name;
 
             var containerElem = blinky.createChild(groupElem, "div");
-            containerElem.setAttribute("class", "result-container");
+            containerElem.setAttribute("class", "job-container");
 
-            var testIds = testGroup["test_ids"];
+            var jobIds = group.job_ids;
             
-            for (var j = 0; j < testIds.length; j++) {
-                var test = data["tests"][testIds[j]];
-                var jobIds = test["job_ids"];
+            for (var i = 0; i < jobIds.length; i++) {
+                var job = data.jobs[jobIds[i]];
 
-                for (var k = 0; k < jobIds.length; k++) {
-                    var job = data["jobs"][jobIds[k]];
-
-                    var resultElem = blinky.createResultElement(data, job);
-                    containerElem.appendChild(resultElem);
-                }
+                var resultElem = blinky.createJob(data, job);
+                containerElem.appendChild(resultElem);
             }
         }
 
         oldContent.parentNode.replaceChild(newContent, oldContent);
     },
 
-    createResultElement: function(data, agent) {
-        var test = data.tests[agent.test_id];
-        var component = data.components[test.component_id];
-        var environment = data.environments[agent.environment_id];
-        var currentResult = agent.current_result;
-        var previousResult = agent.previous_result;
+    createJob: function(data, job) {
+        var component = data.components[job.component_id];
+        var environment = data.environments[job.environment_id];
+        var currentResult = job.current_result;
+        var previousResult = job.previous_result;
 
         var elem = document.createElement("a");
-        elem.setAttribute("class", "result-item");
-        elem.setAttribute("href", agent.url);
+        elem.setAttribute("class", "job-item");
+        elem.setAttribute("href", job.url);
         elem.setAttribute("target", "_parent");
 
         var summary = blinky.createChild(elem, "div");
-        summary.setAttribute("class", "result-summary");
+        summary.setAttribute("class", "job-summary");
         
         var field = blinky.createChild(summary, "div");
         field.setAttribute("class", "summary-item summary-title");
         field.textContent = component.name;
 
-        if (test.name) {
-            var field = blinky.createChild(summary, "div");
-            field.setAttribute("class", "summary-item");
-            field.textContent = test.name;
-        }
-
         var field = blinky.createChild(summary, "div");
         field.setAttribute("class", "summary-item");
         field.textContent = environment.name;
+
+        var field = blinky.createChild(summary, "div");
+        field.setAttribute("class", "summary-item");
+        field.textContent = job.name;
 
         if (!currentResult) {
             return elem;
@@ -162,18 +154,18 @@ var blinky = {
         var secondsAgo = secondsNow - currentResult.timestamp;
         
         if (currentResult.status === "SUCCESS") {
-            elem.setAttribute("class", "result-item success");
+            elem.setAttribute("class", "job-item success");
         } else if (currentResult.status === "FAILURE") {
             if (previousResult && previousResult.status === "SUCCESS") {
-                elem.setAttribute("class", "result-item failure blinky");
+                elem.setAttribute("class", "job-item failure blinky");
             } else {
-                elem.setAttribute("class", "result-item failure");
+                elem.setAttribute("class", "job-item failure");
             }
         } else if (currentResult.status === "UNSTABLE") {
             if (previousResult && previousResult.status === "STABLE") {
-                elem.setAttribute("class", "result-item failure blinky");
+                elem.setAttribute("class", "job-item failure blinky");
             } else {
-                elem.setAttribute("class", "result-item failure");
+                elem.setAttribute("class", "job-item failure");
             }
         }
 
@@ -181,56 +173,51 @@ var blinky = {
         field.setAttribute("class", "summary-item summary-timestamp");
         field.textContent = blinky.formatDuration(secondsAgo);
 
-        var detail = blinky.createDetailElement(data, agent);
+        var detail = blinky.createJobDetail(data, job);
         elem.appendChild(detail);
 
         return elem;
     },
 
-    createDetailElement: function(data, agent) {
-        var test = data.tests[agent.test_id];
-        var component = data.components[test.component_id];
-        var environment = data.environments[agent.environment_id];
-        var currentResult = agent.current_result;
-        var previousResult = agent.previous_result;
+    createJobDetail: function(data, job) {
+        var component = data.components[job.component_id];
+        var environment = data.environments[job.environment_id];
+        var agent = data.agents[job.agent_id];
+        var currentResult = job.current_result;
+        var previousResult = job.previous_result;
 
         var elem = document.createElement("div");
-        elem.setAttribute("class", "result-detail");
+        elem.setAttribute("class", "job-detail");
 
         var table = blinky.createChild(elem, "table");
         var tbody = blinky.createChild(table, "tbody");
 
-        var testName = test.name;
-
-        if (!testName) {
-            testName = "Main";
-        }
-        
-        blinky.createDetailField(tbody, "Component", component.name);
-        blinky.createDetailField(tbody, "Test", testName);
-        blinky.createDetailField(tbody, "Environment", environment.name);
+        blinky.createJobDetailField(tbody, "Component", component.name);
+        blinky.createJobDetailField(tbody, "Environment", environment.name);
+        blinky.createJobDetailField(tbody, "Job", job.name);
+        blinky.createJobDetailField(tbody, "Agent", agent.name);
 
         if (currentResult) {
             var duration = blinky.formatDuration(currentResult.duration);
-        
+            var number = currentResult.number;
             var secondsNow = new Date().getTime() / 1000;
             var secondsAgo = secondsNow - currentResult.timestamp;
             var timeAgo = blinky.formatDuration(secondsAgo) + " ago";
 
-            blinky.createDetailField(tbody, "Time", timeAgo);
-            blinky.createDetailField(tbody, "Duration", duration);
-            blinky.createDetailField(tbody, "Status", currentResult.status);
+            blinky.createJobDetailField(tbody, "Time", timeAgo);
+            blinky.createJobDetailField(tbody, "Duration", duration);
+            blinky.createJobDetailField(tbody, "Number", number);
+            blinky.createJobDetailField(tbody, "Status", currentResult.status);
 
             if (previousResult) {
-                blinky.createDetailField(tbody, "Previous status",
-                                         previousResult.status);
+                blinky.createJobDetailField(tbody, "Prev status", previousResult.status);
             }
         }
         
         return elem;
     },
 
-    createDetailField: function(tbody, name, value) {
+    createJobDetailField: function(tbody, name, value) {
         var tr = blinky.createChild(tbody, "tr");
         var th = blinky.createChild(tr, "th");
         var td = blinky.createChild(tr, "td");
@@ -246,26 +233,30 @@ var blinky = {
         var newContent = document.createElement("tbody");
         newContent.setAttribute("id", "content");
 
-        var secondsNow = new Date().getTime() / 1000;
+        var nowSeconds = new Date().getTime() / 1000;
         
-        for (var jobId in data["jobs"]) {
-            var job = data["jobs"][jobId];
-            var currentResult = job["current_result"];
-            var previousResult = job["previous_result"];
-            var test = data["tests"][job["test_id"]]
-            var testGroup = data["test_groups"][test["test_group_id"]]
-            var component = data["components"][test["component_id"]]
-            var environment = data["environments"][job["environment_id"]]
-            var agent = data["agents"][job["agent_id"]]
+        for (var jobId in data.jobs) {
+            var job = data.jobs[jobId];
+            var component = data.components[job.component_id];
+            var environment = data.environments[job.environment_id];
+            var agent = data.agents[job.agent_id];
+            var currentResult = job.current_result;
+            var previousResult = job.previous_result;
 
-            var time = "-";
+            var timeSeconds = null;
+            var durationSeconds = null;
+            
+            var timeAgo = "-";
             var duration = "-";
             var number = "-"
             var status = "-"
             var previousStatus = "-";
             
             if (currentResult !== null) {
-                time = blinky.formatDuration(secondsNow - currentResult.timestamp);
+                timeSeconds = currentResult.timestamp;
+                durationSeconds = currentResult.duration;
+                
+                timeAgo = blinky.formatDuration(nowSeconds - timeSeconds) + " ago";
                 duration = blinky.formatDuration(currentResult.duration);
                 number = currentResult.number;
                 status = currentResult.status;
@@ -279,25 +270,30 @@ var blinky = {
             var td = null;
             var link = null;
             
+            blinky.createChild(tr, "td").textContent = component.name;
+            blinky.createChild(tr, "td").textContent = environment.name;
+            
             td = blinky.createChild(tr, "td");
             link = blinky.createChild(td, "a");
             link.setAttribute("href", "pretty.html?url=" + encodeURIComponent(job.url));
             link.textContent = job.name;
             
-            blinky.createChild(tr, "td").textContent = component.name;
-            blinky.createChild(tr, "td").textContent = environment.name;
-            blinky.createChild(tr, "td").textContent = test.name ? test.name : "Main";
-            blinky.createChild(tr, "td").textContent = time;
-            blinky.createChild(tr, "td").textContent = duration;
-            blinky.createChild(tr, "td").textContent = number;
-            blinky.createChild(tr, "td").textContent = status;
-            blinky.createChild(tr, "td").textContent = previousStatus;
-            blinky.createChild(tr, "td").textContent = testGroup.name;
-
             td = blinky.createChild(tr, "td");
             link = blinky.createChild(td, "a");
             link.setAttribute("href", "pretty.html?url=" + encodeURIComponent(agent.url));
             link.textContent = agent.name;
+            
+            td = blinky.createChild(tr, "td");
+            td.setAttribute("data-value", timeSeconds);
+            td.textContent = timeAgo;
+            
+            td = blinky.createChild(tr, "td");
+            td.setAttribute("data-value", durationSeconds);
+            td.textContent = duration;
+            
+            blinky.createChild(tr, "td").textContent = number;
+            blinky.createChild(tr, "td").textContent = status;
+            blinky.createChild(tr, "td").textContent = previousStatus;
         }
         
         oldContent.parentNode.replaceChild(newContent, oldContent);

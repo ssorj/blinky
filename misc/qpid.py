@@ -23,11 +23,7 @@ from blinky.travis import *
 
 http_port = 56720
 
-cpp_group = TestGroup(model, "Qpid C++")
-java_group = TestGroup(model, "Qpid Java")
-#dispatch_group = TestGroup(model, "Qpid Dispatch")
-jms_group = TestGroup(model, "Qpid JMS")
-proton_group = TestGroup(model, "Qpid Proton")
+# Components
 
 dispatch = Component(model, "Dispatch")
 proton_c = Component(model, "Proton C")
@@ -35,6 +31,8 @@ proton_j = Component(model, "Proton J")
 qpid_cpp = Component(model, "Qpid C++")
 qpid_java = Component(model, "Qpid Java")
 qpid_jms = Component(model, "Qpid JMS")
+
+# Environments
 
 fedora = Environment(model, "Fedora")
 java_7 = Environment(model, "Java 7")
@@ -46,72 +44,42 @@ ubuntu = Environment(model, "Ubuntu")
 ubuntu_lts = Environment(model, "Ubuntu LTS")
 windows = Environment(model, "Windows")
 
+# Agents
+
 asf_jenkins = JenkinsAgent(model, "ASF Jenkins", "https://builds.apache.org")
 travis = TravisAgent(model, "Travis CI", "https://api.travis-ci.org")
 appveyor = AppveyorAgent(model, "Appveyor", "https://ci.appveyor.com")
 
-# Qpid C++
+# Qpid brokers
 
-test = Test(model, cpp_group, qpid_cpp)
+group = Group(model, "Qpid brokers")
 
-JenkinsJob(model, asf_jenkins, test, ubuntu, "Qpid-cpp-trunk-test")
-
-# Qpid Java
-
-test = Test(model, java_group, qpid_java)
-
-JenkinsJob(model, asf_jenkins, test, java_7, "Qpid-Java-Java-Test-IBMJDK1.7")
-JenkinsJob(model, asf_jenkins, test, java_8, "Qpid-Java-Java-Test-JDK1.8")
-
-test = Test(model, java_group, qpid_java, "Joram")
-
-JenkinsJob(model, asf_jenkins, test, java_7, "Qpid-Java-JoramJMSTest")
-
-test = Test(model, java_group, qpid_java, "BDB")
-
-JenkinsJob(model, asf_jenkins, test, java_8, "Qpid-Java-Java-BDB-TestMatrix")
-
-test = Test(model, java_group, qpid_java, "MMS")
-
-JenkinsJob(model, asf_jenkins, test, java_7, "Qpid-Java-Java-MMS-TestMatrix")
-
-test = Test(model, java_group, qpid_java, "C++ broker")
-
-JenkinsJob(model, asf_jenkins, test, java_7, "Qpid-Java-Cpp-Test")
-
-test = Test(model, java_group, qpid_java, "Deploy")
-
-JenkinsJob(model, asf_jenkins, test, java_7, "Qpid-Java-Artefact-Release")
+JenkinsJob(model, group, qpid_java, java_7, asf_jenkins, "Main tests", "Qpid-Java-Java-Test-IBMJDK1.7")
+JenkinsJob(model, group, qpid_java, java_8, asf_jenkins, "Main tests", "Qpid-Java-Java-Test-JDK1.8")
+JenkinsJob(model, group, qpid_java, java_7, asf_jenkins, "C++ broker", "Qpid-Java-Cpp-Test")
+JenkinsJob(model, group, qpid_java, java_7, asf_jenkins, "Deploy",     "Qpid-Java-Artefact-Release")
+JenkinsJob(model, group, qpid_java, java_7, asf_jenkins, "Joram",      "Qpid-Java-JoramJMSTest")
+JenkinsJob(model, group, qpid_java, java_7, asf_jenkins, "MMS",        "Qpid-Java-Java-MMS-TestMatrix")
+JenkinsJob(model, group, qpid_java, java_8, asf_jenkins, "BDB",        "Qpid-Java-Java-BDB-TestMatrix")
+JenkinsJob(model, group, qpid_cpp,  ubuntu, asf_jenkins, "Main tests", "Qpid-cpp-trunk-test")
 
 # Qpid JMS
 
-test = Test(model, jms_group, qpid_jms)
+group = Group(model, "Qpid JMS")
 
-JenkinsJob(model, asf_jenkins, test, java_7, "Qpid-JMS-Test-JDK7")
-TravisJob(model, travis, test, java_7, "apache/qpid-jms", "master")
-AppveyorJob(model, appveyor, test, java_7, "stumped2", "qpid-jms", "master")
-JenkinsJob(model, asf_jenkins, test, java_8, "Qpid-JMS-Test-JDK8")
-
-test = Test(model, jms_group, qpid_jms, "Extra tests")
-
-JenkinsJob(model, asf_jenkins, test, java_8, "Qpid-JMS-Checks")
-
-test = Test(model, jms_group, qpid_jms, "Deploy")
-
-JenkinsJob(model, asf_jenkins, test, java_7, "Qpid-JMS-Deploy")
+JenkinsJob (model, group, qpid_jms, java_7, asf_jenkins, "Main tests",  "Qpid-JMS-Test-JDK7")
+JenkinsJob (model, group, qpid_jms, java_8, asf_jenkins, "Main tests",  "Qpid-JMS-Test-JDK8")
+TravisJob  (model, group, qpid_jms, java_7, travis,      "Main tests",  "apache/qpid-jms", "master")
+AppveyorJob(model, group, qpid_jms, java_7, appveyor,    "Main tests",  "stumped2", "qpid-jms", "master")
+JenkinsJob (model, group, qpid_jms, java_7, asf_jenkins, "Deploy",      "Qpid-JMS-Deploy")
+JenkinsJob (model, group, qpid_jms, java_8, asf_jenkins, "Extra tests", "Qpid-JMS-Checks")
 
 # Qpid Proton
 
-test = Test(model, proton_group, proton_c)
+group = Group(model, "Qpid Proton")
 
-JenkinsJob(model, asf_jenkins, test, ubuntu, "Qpid-proton-c")
-TravisJob(model, travis, test, ubuntu_lts, "apache/qpid-proton", "master")
-AppveyorJob(model, appveyor, test, windows, "ke4qqq", "qpid-proton", "master")
-
-test = Test(model, proton_group, proton_j)
-
-JenkinsJob(model, asf_jenkins, test, java_7, "Qpid-proton-j")
-
-test = Test(model, proton_group, proton_j, "Deploy")
-
-JenkinsJob(model, asf_jenkins, test, java_7, "Qpid-proton-j-Deploy")
+JenkinsJob (model, group, proton_c, ubuntu,     asf_jenkins, "Main tests", "Qpid-proton-c")
+TravisJob  (model, group, proton_c, ubuntu_lts, travis,      "Main tests", "apache/qpid-proton", "master")
+AppveyorJob(model, group, proton_c, windows,    appveyor,    "Main tests", "ke4qqq", "qpid-proton", "master")
+JenkinsJob (model, group, proton_j, java_7,     asf_jenkins, "Main tests", "Qpid-proton-j")
+JenkinsJob (model, group, proton_j, java_7,     asf_jenkins, "Deploy",      "Qpid-proton-j-Deploy")
