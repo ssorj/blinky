@@ -155,6 +155,8 @@ class Application:
         self._sessions_by_id = dict()
         self._session_expire_thread = _SessionExpireThread(self)
 
+        self.debug = "BRBN_DEBUG" in _os.environ
+
     def __repr__(self):
         return _format_repr(self, self.home)
 
@@ -574,7 +576,13 @@ class File(Resource):
         self._etag = compute_etag(self._content)
 
     def process(self, request):
-        request.add_response_header("Cache-Control", "max-age=120")
+        max_age = 120
+        
+        if self.app.debug:
+            self.load()
+            max_age = 0
+        
+        request.add_response_header("Cache-Control", "max-age={}".format(max_age))
 
     def render(self, request):
         return self._content

@@ -126,7 +126,7 @@ var blinky = {
 
         var elem = document.createElement("a");
         elem.setAttribute("class", "job-item");
-        elem.setAttribute("href", job.url);
+        elem.setAttribute("href", job.html_url);
         elem.setAttribute("target", "_parent");
 
         var summary = blinky.createChild(elem, "div");
@@ -148,7 +148,7 @@ var blinky = {
             return elem;
         }
 
-        elem.setAttribute("href", currentResult.url);
+        elem.setAttribute("href", currentResult.html_url); # XXX this overrides the above
 
         var secondsNow = new Date().getTime() / 1000;
         var secondsAgo = secondsNow - currentResult.timestamp;
@@ -275,12 +275,12 @@ var blinky = {
             
             td = blinky.createChild(tr, "td");
             link = blinky.createChild(td, "a");
-            link.setAttribute("href", "pretty.html?url=" + encodeURIComponent(job.url));
+            link.setAttribute("href", "pretty.html?url=" + encodeURIComponent(job.data_url));
             link.textContent = job.name;
             
             td = blinky.createChild(tr, "td");
             link = blinky.createChild(td, "a");
-            link.setAttribute("href", "pretty.html?url=" + encodeURIComponent(agent.url));
+            link.setAttribute("href", "pretty.html?url=" + encodeURIComponent(agent.data_url));
             link.textContent = agent.name;
             
             td = blinky.createChild(tr, "td");

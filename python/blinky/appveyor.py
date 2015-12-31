@@ -28,7 +28,8 @@ from datetime import datetime as _datetime
 _log = _logging.getLogger("blinky.appveyor")
 
 class AppveyorAgent(HttpAgent):
-    pass
+    html_url = "https://ci.appveyor.com"
+    data_url = "https://ci.appveyor.com"
 
 class AppveyorJob(HttpJob):
     def __init__(self, model, group, component, environment, agent, name,
@@ -39,8 +40,10 @@ class AppveyorJob(HttpJob):
         self.project = project
         self.branch = branch
 
-        args = self.agent.url, self.account, self.project, self.branch
-        self.url = "{}/api/projects/{}/{}/branch/{}".format(*args)
+        self.html_url = "{}/project/{}/{}" \
+            .format(self.agent.html_url, self.account, self.project)
+        self.data_url = "{}/api/projects/{}/{}/branch/{}" \
+            .format(self.agent.data_url, self.account, self.project, self.branch)
 
     def convert_result(self, data):
         data = data["build"]
@@ -54,15 +57,15 @@ class AppveyorJob(HttpJob):
         timestamp = _calendar.timegm(timestamp.timetuple())
 
         version = data["version"]
-        args = self.account, self.project, version
-        url = "https://ci.appveyor.com/project/{}/{}/build/{}".format(*args)
+        html_url = "{}/project/{}/{}/build/{}" \
+                   .format(self.agent.html_url, self.account, self.project, version)
         
         result = JobResult()
         result.number = data["buildNumber"]
         result.status = status
         result.timestamp = timestamp
         result.duration = None
-        result.url = url
+        result.html_url = html_url
 
         return result
 

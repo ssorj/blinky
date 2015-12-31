@@ -47,8 +47,8 @@ windows = Environment(model, "Windows")
 # Agents
 
 asf_jenkins = JenkinsAgent(model, "ASF Jenkins", "https://builds.apache.org")
-travis = TravisAgent(model, "Travis CI", "https://api.travis-ci.org")
-appveyor = AppveyorAgent(model, "Appveyor", "https://ci.appveyor.com")
+travis = TravisAgent(model, "Travis CI")
+appveyor = AppveyorAgent(model, "Appveyor")
 
 # Qpid brokers
 

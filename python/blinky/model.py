@@ -23,7 +23,6 @@ import json as _json
 import hashlib as _hashlib
 import logging as _logging
 import pencil as _pencil
-import pprint as _pprint
 import requests as _requests
 import threading as _threading
 import time as _time
@@ -168,10 +167,8 @@ class Environment(_ModelObject):
         self.jobs = list()
 
 class Agent(_ModelObject):
-    def __init__(self, model, name, url):
+    def __init__(self, model, name):
         super().__init__(model, model.agents, name)
-
-        self.url = url
         self.jobs = list()
 
     def update(self):
@@ -179,7 +176,8 @@ class Agent(_ModelObject):
 
     def render_data(self):
         data = super().render_data()
-        data["url"] = self.url
+        data["html_url"] = self.html_url
+        data["data_url"] = self.data_url
 
         return data
     
@@ -205,11 +203,14 @@ class Job(_ModelObject):
 
         self.results = _collections.deque(maxlen=2)
 
+        self.html_url = None
+        self.data_url = None
+        
     def update(self, context):
         try:
             data = self.fetch_data(context)
         except:
-            _log.warn("Failure fetching data for {}".format(self))
+            _log.exception("Failure fetching data for {}".format(self))
             return
 
         assert data is not None
@@ -250,7 +251,9 @@ class Job(_ModelObject):
         data["component_id"] = self.component.id
         data["environment_id"] = self.environment.id
         data["agent_id"] = self.agent.id
-        data["url"] = self.url
+
+        data["html_url"] = self.html_url
+        data["data_url"] = self.data_url
 
         data["previous_result"] = None
         data["current_result"] = None
@@ -263,17 +266,15 @@ class Job(_ModelObject):
 
         return data
 
-    def pprint(self):
-        data = self.render_data()
-        _pprint.pprint(data)
-
 class JobResult:
     def __init__(self):
-        self.number = None
-        self.status = None
-        self.timestamp = None
-        self.duration = None
-        self.url = None
+        self.number = None      # Result sequence number
+        self.status = None      # Status string (SUCCESS, FAILURE, other)
+        self.timestamp = None   # Start (?) time in seconds
+        self.duration = None    # Duration in seconds
+
+        self.html_url = None    # World Wide Web URL
+        self.data_url = None    # Usually a JSON URL
 
     def render_data(self):
         data = dict()
@@ -281,7 +282,9 @@ class JobResult:
         data["status"] = self.status
         data["timestamp"] = self.timestamp
         data["duration"] = self.duration
-        data["url"] = self.url
+
+        data["html_url"] = self.html_url
+        data["data_url"] = self.data_url
         
         return data
 
@@ -293,10 +296,10 @@ class HttpAgent(Agent):
 
 class HttpJob(Job):
     def fetch_data(self, session, headers=None):
-        response = session.get(self.url, headers=headers)
+        response = session.get(self.data_url, headers=headers)
 
         if response.status_code != 200:
-            _log.warn("Request URL:      {}".format(self.url))
+            _log.warn("Request URL:      {}".format(self.data_url))
             _log.warn("Request headers:  {}".format(headers))
             _log.warn("Response code:    {}".format(response.status_code))
             _log.warn("Response headers: {}".format(response.headers))

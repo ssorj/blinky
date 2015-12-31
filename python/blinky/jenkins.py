@@ -25,17 +25,22 @@ import requests as _requests
 _log = _logging.getLogger("blinky.jenkins")
 
 class JenkinsAgent(HttpAgent):
-    pass
-
+    def __init__(self, model, name, url):
+        super().__init__(model, name)
+        
+        self.html_url = url
+        self.data_url = url
+    
 class JenkinsJob(HttpJob):
     def __init__(self, model, group, component, environment, agent, name,
                  slug):
         super().__init__(model, group, component, environment, agent, name)
 
         self.slug = slug
-        
-        args = self.agent.url, self.slug
-        self.url = "{}/job/{}/lastBuild/api/json".format(*args)
+
+        self.html_url = "{}/job/{}".format(self.agent.html_url, self.slug)
+        self.data_url = "{}/job/{}/lastBuild/api/json" \
+            .format(self.agent.data_url, self.slug)
 
     def convert_result(self, data):
         result = JobResult()
@@ -43,6 +48,6 @@ class JenkinsJob(HttpJob):
         result.status = data["result"]
         result.timestamp = data["timestamp"] / 1000.0
         result.duration = data["duration"] / 1000.0
-        result.url = data["url"]
+        result.html_url = data["url"]
 
         return result
