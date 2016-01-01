@@ -23,14 +23,16 @@
       
           blinky.sendRequest(proxy, function(request) {
               var text = request.responseText;
-              var obj = JSON.parse(text);
-      
-              text = JSON.stringify(obj, null, 4);
-              text = text.replace(/"(https?:\/\/[^"]*)"/g, "\"<a href=\"pretty.html?url=$1\">$1</a>\"");
-              text = hljs.highlight("json", text).value;
-
-              alert(text);
+              var contentType = request.getResponseHeader("Content-Type");
               
+              if (contentType.indexOf("application/json") === 0) {
+                  var json = JSON.parse(text);
+
+                  text = JSON.stringify(json, null, 4);
+                  text = hljs.highlight("json", text).value;
+                  text = text.replace(/"(https?:\/\/.*?)"/g, "\"<a href=\"pretty.html?url=$1\">$1</a>\"");
+              }
+
               $("#content").innerHTML = text;
           });
       });
@@ -41,9 +43,5 @@
     <p><a id="link" href=""></a></p>
     
     <pre id="content" class="json">[Loading...]</pre>
-
-    <pre>
-    <a href="xxx">Test</a>
-    </pre>
   </body>
 </html>
