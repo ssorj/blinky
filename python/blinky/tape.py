@@ -53,21 +53,18 @@ class Tape:
     def update_lights(self, data):
         index = 0
 
-        for group_id in sorted(data["test_groups"]):
-            group = data["test_groups"][str(group_id)]
-            
-            for test_id in group["test_ids"]:
-                test = data["tests"][str(test_id)]
+        for group_id in sorted(data["groups"]):
+            group = data["groups"][str(group_id)]
 
-                for job_id in sorted(test["job_ids"]):
-                    job = data["jobs"][str(job_id)]
-                    
-                    if index >= 58:
-                        return
+            for job_id in group["job_ids"]:
+                job = data["jobs"][str(job_id)]
 
-                    self.lights[index] = _Light.for_job(job)
+                if index >= 58:
+                    return
 
-                    index += 1
+                self.lights[index] = _Light.for_job(job)
+
+                index += 1
 
             index +=1
 

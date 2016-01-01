@@ -29,8 +29,8 @@ class JenkinsAgent(HttpAgent):
         super().__init__(model, name)
         
         self.html_url = url
-        self.data_url = url
-    
+        self.data_url = "{}/api/json".format(self.html_url)
+
 class JenkinsJob(HttpJob):
     def __init__(self, model, group, component, environment, agent, name,
                  slug):
@@ -39,15 +39,21 @@ class JenkinsJob(HttpJob):
         self.slug = slug
 
         self.html_url = "{}/job/{}".format(self.agent.html_url, self.slug)
-        self.data_url = "{}/job/{}/lastBuild/api/json" \
-            .format(self.agent.data_url, self.slug)
+        self.data_url = "{}/api/json".format(self.html_url)
+        self.fetch_url = "{}/lastBuild/api/json".format(self.html_url)
 
     def convert_result(self, data):
+        number = data["number"]
+        
+        html_url = "{}/{}".format(self.html_url, number)
+        data_url = "{}/api/json".format(html_url)
+        
         result = JobResult()
-        result.number = data["number"]
+        result.number = number
         result.status = data["result"]
-        result.timestamp = data["timestamp"] / 1000.0
+        result.start_time = data["timestamp"] / 1000.0
         result.duration = data["duration"] / 1000.0
-        result.html_url = data["url"]
+        result.html_url = html_url
+        result.data_url = data_url
 
         return result

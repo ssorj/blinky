@@ -49,6 +49,7 @@ h2 {
 
 a {
     text-decoration: none;
+    color: rgba(0, 0, 255, 0.8);
 }
 
 td, th {

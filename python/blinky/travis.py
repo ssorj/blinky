@@ -28,8 +28,11 @@ from datetime import datetime as _datetime
 _log = _logging.getLogger("blinky.travis")
 
 class TravisAgent(HttpAgent):
-    html_url = "https://travis-ci.org"
-    data_url = html_url
+    def __init__(self, model, name):
+        super().__init__(model, name)
+    
+        self.html_url = "https://travis-ci.org"
+        self.data_url = "https://api.travis-ci.org"
 
 class TravisJob(HttpJob):
     def __init__(self, model, group, component, environment, agent, name,
@@ -40,8 +43,9 @@ class TravisJob(HttpJob):
         self.branch = branch
 
         self.html_url = "{}/repos/{}/branches/{}" \
+            .format(self.agent.html_url, self.repo, self.branch)
+        self.data_url = "{}/repos/{}/branches/{}" \
             .format(self.agent.data_url, self.repo, self.branch)
-        self.data_url = self.html_url
 
     def fetch_data(self, session):
         headers = {
@@ -61,8 +65,7 @@ class TravisJob(HttpJob):
         timestamp = _datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
         timestamp = _calendar.timegm(timestamp.timetuple())
 
-        build_id = data["id"]
-        html_url = "https://travis-ci.org/{}/builds/{}".format(self.repo, build_id)
+        html_url = "https://travis-ci.org/{}/builds/{}".format(self.repo, data["id"])
         
         result = JobResult()
         result.number = int(data["number"])

@@ -24,6 +24,7 @@ import hashlib as _hashlib
 import logging as _logging
 import pencil as _pencil
 import requests as _requests
+import sched as _sched
 import threading as _threading
 import time as _time
 
@@ -55,7 +56,7 @@ class Model:
         time = self.update_time.timetuple()
         time = _time.mktime(time) + 1e-6 * self.update_time.microsecond
 
-        data["update_timestamp"] = time
+        # data["update_timestamp"] = time
         
         groups_data = data["groups"] = dict()
         components_data = data["components"] = dict()
@@ -99,8 +100,8 @@ class Model:
         self.json = _json.dumps(data, sort_keys=True).encode("utf-8")
         self.json_digest = _hashlib.sha1(self.json).hexdigest()
 
-        _log.info("Prev json: {} {}".format(prev_digest, len(prev_json)))
-        _log.info("Curr json: {} {}".format(self.json_digest, len(self.json)))
+        _log.debug("Prev json: {} {}".format(prev_digest, len(prev_json)))
+        _log.debug("Curr json: {} {}".format(self.json_digest, len(self.json)))
         
         _log.info("Updated at {}".format(self.update_time))
 
@@ -112,19 +113,24 @@ class _ModelUpdateThread(_threading.Thread):
         self.name = "_ModelUpdateThread"
         self.daemon = True
 
+        self.scheduler = _sched.scheduler()
+
     def start(self):
         _log.info("Starting update thread")
         
         super().start()
 
     def run(self):
-        while True:
-            _time.sleep(120)
+        self.update_model()
+        self.scheduler.run()
 
-            try:
-                self.model.update()
-            except:
-                _log.exception("Unexpected error")
+    def update_model(self):
+        self.scheduler.enter(120, 1, self.update_model)
+        
+        try:
+            self.model.update()
+        except:
+            _log.exception("Update failed")
 
 class _ModelObject:
     def __init__(self, model, collection, name):
@@ -169,6 +175,10 @@ class Environment(_ModelObject):
 class Agent(_ModelObject):
     def __init__(self, model, name):
         super().__init__(model, model.agents, name)
+
+        self.html_url = None
+        self.data_url = None
+
         self.jobs = list()
 
     def update(self):
@@ -205,6 +215,7 @@ class Job(_ModelObject):
 
         self.html_url = None
         self.data_url = None
+        self.fetch_url = None
         
     def update(self, context):
         try:
@@ -296,10 +307,15 @@ class HttpAgent(Agent):
 
 class HttpJob(Job):
     def fetch_data(self, session, headers=None):
-        response = session.get(self.data_url, headers=headers)
+        url = self.fetch_url
+
+        if url is None:
+            url = self.data_url
+        
+        response = session.get(url, headers=headers)
 
         if response.status_code != 200:
-            _log.warn("Request URL:      {}".format(self.data_url))
+            _log.warn("Request URL:      {}".format(url))
             _log.warn("Request headers:  {}".format(headers))
             _log.warn("Response code:    {}".format(response.status_code))
             _log.warn("Response headers: {}".format(response.headers))

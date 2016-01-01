@@ -9,6 +9,7 @@
     <script src="site.js"></script>    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/highlight.min.js"></script>
     <script>
+    <![CDATA[
       "use strict";
 
       var qs = window.location.search;
@@ -25,16 +26,24 @@
               var obj = JSON.parse(text);
       
               text = JSON.stringify(obj, null, 4);
+              text = text.replace(/"(https?:\/\/[^"]*)"/g, "\"<a href=\"pretty.html?url=$1\">$1</a>\"");
               text = hljs.highlight("json", text).value;
+
+              alert(text);
               
               $("#content").innerHTML = text;
           });
       });
+    ]]>
     </script>
   </head>
   <body>
     <p><a id="link" href=""></a></p>
     
     <pre id="content" class="json">[Loading...]</pre>
+
+    <pre>
+    <a href="xxx">Test</a>
+    </pre>
   </body>
 </html>

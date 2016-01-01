@@ -27,7 +27,7 @@ var $ = function(selectors) {
 
 var blinky = {
     etag: null,
-    updateInterval: 10000,
+    updateInterval: 30 * 1000,
 
     sendRequest: function(url, handler) {
         var request = new XMLHttpRequest();
@@ -56,6 +56,24 @@ var blinky = {
         return child;
     },
 
+    createObjectLink: function(parent, obj) {
+        var elem = blinky.createChild(parent, "a");
+
+        elem.setAttribute("href", obj.html_url);
+        elem.textContent = obj.name;
+
+        return elem;
+    },
+
+    createObjectDataLink: function(parent, obj) {
+        var elem = blinky.createChild(parent, "a");
+
+        elem.setAttribute("href", "pretty.html?url=" + encodeURIComponent(obj.data_url));
+        elem.textContent = obj.name;
+
+        return elem;
+    },
+        
     formatDuration: function(seconds) {
         if (seconds < 0)
             seconds = 0;
@@ -148,7 +166,7 @@ var blinky = {
             return elem;
         }
 
-        elem.setAttribute("href", currentResult.html_url); # XXX this overrides the above
+        elem.setAttribute("href", currentResult.html_url); // XXX this overrides the above
 
         var secondsNow = new Date().getTime() / 1000;
         var secondsAgo = secondsNow - currentResult.timestamp;
@@ -191,11 +209,16 @@ var blinky = {
 
         var table = blinky.createChild(elem, "table");
         var tbody = blinky.createChild(table, "tbody");
+        var td = null;
 
-        blinky.createJobDetailField(tbody, "Component", component.name);
-        blinky.createJobDetailField(tbody, "Environment", environment.name);
-        blinky.createJobDetailField(tbody, "Job", job.name);
-        blinky.createJobDetailField(tbody, "Agent", agent.name);
+        blinky.createJobDetailField(tbody, "Component").textContent = component.name;
+        blinky.createJobDetailField(tbody, "Environment").textContent = environment.name;
+
+        td = blinky.createJobDetailField(tbody, "Job");
+        blinky.createObjectLink(td, job);
+        
+        td = blinky.createJobDetailField(tbody, "Agent");
+        blinky.createObjectLink(td, agent);
 
         if (currentResult) {
             var duration = blinky.formatDuration(currentResult.duration);
@@ -203,27 +226,31 @@ var blinky = {
             var secondsNow = new Date().getTime() / 1000;
             var secondsAgo = secondsNow - currentResult.timestamp;
             var timeAgo = blinky.formatDuration(secondsAgo) + " ago";
+            
+            blinky.createJobDetailField(tbody, "Time").textContent = timeAgo;
+            blinky.createJobDetailField(tbody, "Duration").textContent = duration;
 
-            blinky.createJobDetailField(tbody, "Time", timeAgo);
-            blinky.createJobDetailField(tbody, "Duration", duration);
-            blinky.createJobDetailField(tbody, "Number", number);
-            blinky.createJobDetailField(tbody, "Status", currentResult.status);
+            td = blinky.createJobDetailField(tbody, "Number");
+            blinky.createObjectLink(td, currentResult).textContent = number;
+            
+            blinky.createJobDetailField(tbody, "Status").textContent = currentResult.status;
 
             if (previousResult) {
-                blinky.createJobDetailField(tbody, "Prev status", previousResult.status);
+                blinky.createJobDetailField(tbody, "Prev status").textContent = previousResult.status;
             }
         }
         
         return elem;
     },
 
-    createJobDetailField: function(tbody, name, value) {
+    createJobDetailField: function(tbody, name) {
         var tr = blinky.createChild(tbody, "tr");
         var th = blinky.createChild(tr, "th");
         var td = blinky.createChild(tr, "td");
 
         th.textContent = name;
-        td.textContent = value;
+
+        return td;
     },
 
     renderTable: function(request) {
@@ -274,14 +301,10 @@ var blinky = {
             blinky.createChild(tr, "td").textContent = environment.name;
             
             td = blinky.createChild(tr, "td");
-            link = blinky.createChild(td, "a");
-            link.setAttribute("href", "pretty.html?url=" + encodeURIComponent(job.data_url));
-            link.textContent = job.name;
+            link = blinky.createObjectLink(td, job);
             
             td = blinky.createChild(tr, "td");
-            link = blinky.createChild(td, "a");
-            link.setAttribute("href", "pretty.html?url=" + encodeURIComponent(agent.data_url));
-            link.textContent = agent.name;
+            link = blinky.createObjectLink(td, agent);
             
             td = blinky.createChild(tr, "td");
             td.setAttribute("data-value", timeSeconds);
@@ -291,7 +314,10 @@ var blinky = {
             td.setAttribute("data-value", durationSeconds);
             td.textContent = duration;
             
-            blinky.createChild(tr, "td").textContent = number;
+            td = blinky.createChild(tr, "td");
+            link = blinky.createObjectLink(td, currentResult);
+            link.textContent = number;
+
             blinky.createChild(tr, "td").textContent = status;
             blinky.createChild(tr, "td").textContent = previousStatus;
         }
