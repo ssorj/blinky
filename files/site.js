@@ -169,7 +169,7 @@ var blinky = {
         elem.setAttribute("href", currentResult.html_url); // XXX this overrides the above
 
         var secondsNow = new Date().getTime() / 1000;
-        var secondsAgo = secondsNow - currentResult.timestamp;
+        var secondsAgo = secondsNow - currentResult.start_time;
         
         if (currentResult.status === "SUCCESS") {
             elem.setAttribute("class", "job-item success");
@@ -188,7 +188,7 @@ var blinky = {
         }
 
         var field = blinky.createChild(summary, "div");
-        field.setAttribute("class", "summary-item summary-timestamp");
+        field.setAttribute("class", "summary-item summary-start-time");
         field.textContent = blinky.formatDuration(secondsAgo);
 
         var detail = blinky.createJobDetail(data, job);
@@ -224,7 +224,7 @@ var blinky = {
             var duration = blinky.formatDuration(currentResult.duration);
             var number = currentResult.number;
             var secondsNow = new Date().getTime() / 1000;
-            var secondsAgo = secondsNow - currentResult.timestamp;
+            var secondsAgo = secondsNow - currentResult.start_time;
             var timeAgo = blinky.formatDuration(secondsAgo) + " ago";
             
             blinky.createJobDetailField(tbody, "Time").textContent = timeAgo;
@@ -280,7 +280,7 @@ var blinky = {
             var previousStatus = "-";
             
             if (currentResult !== null) {
-                timeSeconds = currentResult.timestamp;
+                timeSeconds = currentResult.start_time;
                 durationSeconds = currentResult.duration;
                 
                 timeAgo = blinky.formatDuration(nowSeconds - timeSeconds) + " ago";

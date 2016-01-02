@@ -61,16 +61,16 @@ class TravisJob(HttpJob):
         status = data["state"]
         status = _status_mapping.get(status, status)
 
-        timestamp = data["started_at"]
-        timestamp = _datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
-        timestamp = _calendar.timegm(timestamp.timetuple())
+        start_time = data["started_at"]
+        start_time = _datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ")
+        start_time = _calendar.timegm(start_time.timetuple())
 
         html_url = "https://travis-ci.org/{}/builds/{}".format(self.repo, data["id"])
         
         result = JobResult()
         result.number = int(data["number"])
         result.status = status
-        result.timestamp = timestamp
+        result.start_time = start_time
         result.duration = data["duration"]
         result.html_url = html_url
 

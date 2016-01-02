@@ -56,7 +56,7 @@ class Model:
         time = self.update_time.timetuple()
         time = _time.mktime(time) + 1e-6 * self.update_time.microsecond
 
-        # data["update_timestamp"] = time
+        # data["update_time"] = time
         
         groups_data = data["groups"] = dict()
         components_data = data["components"] = dict()
@@ -262,7 +262,6 @@ class Job(_ModelObject):
         data["component_id"] = self.component.id
         data["environment_id"] = self.environment.id
         data["agent_id"] = self.agent.id
-
         data["html_url"] = self.html_url
         data["data_url"] = self.data_url
 
@@ -281,19 +280,18 @@ class JobResult:
     def __init__(self):
         self.number = None      # Result sequence number
         self.status = None      # Status string (SUCCESS, FAILURE, other)
-        self.timestamp = None   # Start (?) time in seconds
+        self.start_time = None  # Start time in seconds
         self.duration = None    # Duration in seconds
-
         self.html_url = None    # World Wide Web URL
         self.data_url = None    # Usually a JSON URL
 
     def render_data(self):
         data = dict()
+
         data["number"] = self.number
         data["status"] = self.status
-        data["timestamp"] = self.timestamp
+        data["start_time"] = self.start_time
         data["duration"] = self.duration
-
         data["html_url"] = self.html_url
         data["data_url"] = self.data_url
         

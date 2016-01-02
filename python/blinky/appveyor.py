@@ -54,10 +54,10 @@ class AppveyorJob(HttpJob):
         status = data["status"]
         status = _status_mapping.get(status, status)
 
-        timestamp = data["started"]
-        timestamp = timestamp[:26]
-        timestamp = _datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f")
-        timestamp = _calendar.timegm(timestamp.timetuple())
+        start_time = data["started"]
+        start_time = start_time[:26]
+        start_time = _datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S.%f")
+        start_time = _calendar.timegm(start_time.timetuple())
 
         version = data["version"]
 
@@ -67,7 +67,7 @@ class AppveyorJob(HttpJob):
         result = JobResult()
         result.number = data["buildNumber"]
         result.status = status
-        result.timestamp = timestamp
+        result.start_time = start_time
         result.duration = None
         result.html_url = html_url
         result.data_url = data_url
