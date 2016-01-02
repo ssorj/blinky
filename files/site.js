@@ -26,25 +26,16 @@ var $ = function(selectors) {
 };
 
 var blinky = {
-    etag: null,
-    updateInterval: 30 * 1000,
-
     sendRequest: function(url, handler) {
         var request = new XMLHttpRequest();
         
         request.onreadystatechange = function() {
-            if (request.readyState == 4 && request.status == 200) {
+            if (request.readyState === 4 && request.status === 200) {
                 handler(request);
-                blinky.etag = request.getResponseHeader("ETag");
             }
         };
 
         request.open("GET", url);
-
-        if (blinky.etag !== null) {
-            request.setRequestHeader("If-None-Match", blinky.etag);
-        }
-        
         request.send(null);
     },
 
@@ -102,9 +93,7 @@ var blinky = {
         return Math.floor(seconds) + "s";
     },
 
-    renderLights: function(request) {
-        var data = JSON.parse(request.responseText);
-
+    renderLights: function(data) {
         var oldContent = $("#content");
         var newContent = document.createElement("div");
         newContent.setAttribute("id", "content");
@@ -253,9 +242,7 @@ var blinky = {
         return td;
     },
 
-    renderTable: function(request) {
-        var data = JSON.parse(request.responseText);
-
+    renderTable: function(data) {
         var oldContent = $("#content");
         var newContent = document.createElement("tbody");
         newContent.setAttribute("id", "content");
@@ -324,12 +311,55 @@ var blinky = {
         
         oldContent.parentNode.replaceChild(newContent, oldContent);
     },
+
+    renderUpdateInfo: function(request) {
+        var elem = $("#update-info");
+
+        if (elem === null) {
+            return;
+        }
+
+        var time = new Date().toLocaleString();
+
+        elem.textContent = time + " (" + request.status + ")";
+    },
+    
+    etag: null,
+    updateInterval: 5 * 1000,
+
+    update: function(handler) {
+        var request = new XMLHttpRequest();
+        
+        request.onreadystatechange = function() {
+            if (request.readyState === 4) {
+                blinky.renderUpdateInfo(request);
+                
+                if (request.status !== 200) {
+                    return;
+                }
+
+                blinky.etag = request.getResponseHeader("ETag");
+
+                var data = JSON.parse(request.responseText);
+
+                handler(data);
+            }
+        };
+
+        request.open("GET", "/data.json");
+
+        if (blinky.etag !== null) {
+            request.setRequestHeader("If-None-Match", blinky.etag);
+        }
+        
+        request.send(null);
+    },
     
     updateLights: function() {
-        blinky.sendRequest("data.json", blinky.renderLights);
+        blinky.update(blinky.renderLights);
     }, 
 
     updateTable: function() {
-        blinky.sendRequest("data.json", blinky.renderTable);
+        blinky.update(blinky.renderTable);
     }
 };
