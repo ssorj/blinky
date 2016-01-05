@@ -325,7 +325,7 @@ var blinky = {
     },
     
     etag: null,
-    updateInterval: 5 * 1000,
+    updateInterval: 60 * 1000,
 
     update: function(handler) {
         var request = new XMLHttpRequest();
