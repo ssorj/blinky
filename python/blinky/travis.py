@@ -62,8 +62,10 @@ class TravisJob(HttpJob):
         status = _status_mapping.get(status, status)
 
         start_time = data["started_at"]
-        start_time = _datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ")
-        start_time = _calendar.timegm(start_time.timetuple())
+
+        if start_time is not None:
+            start_time = _datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ")
+            start_time = _calendar.timegm(start_time.timetuple())
 
         html_url = "https://travis-ci.org/{}/builds/{}".format(self.repo, data["id"])
         

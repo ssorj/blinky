@@ -50,6 +50,10 @@ var blinky = {
     createObjectLink: function(parent, obj) {
         var elem = blinky.createChild(parent, "a");
 
+        if (obj === null) {
+            return elem; // XXX Temporary
+        }
+
         elem.setAttribute("href", obj.html_url);
         elem.textContent = obj.name;
 
