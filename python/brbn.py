@@ -965,7 +965,7 @@ class Server:
             msg = "Cannot listen on port {}: {}".format(self._port, str(e))
             raise Error(msg)
 
-        _IOLoop.current().start()
+        _IOLoop.instance().start()
 
 class Hello(Application):
     def __init__(self, home):
