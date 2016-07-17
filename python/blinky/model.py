@@ -317,8 +317,12 @@ class HttpJob(Job):
             _log.warn("Request headers:  {}".format(headers))
             _log.warn("Response code:    {}".format(response.status_code))
             _log.warn("Response headers: {}".format(response.headers))
-            _log.warn("Response text:    {}".format(response.text))
 
-        data = response.json()
+            if response.status_code == 500:
+                _log.warn("Response text:    {}".format(response.text))
+            else:
+                _log.debug("Response text:    {}".format(response.text))
 
-        return data
+            raise Exception("HTTP request error")
+
+        return response.json()
