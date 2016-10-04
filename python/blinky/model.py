@@ -87,6 +87,8 @@ class Model:
         for agent in self.agents:
             try:
                 agent.update()
+            except KeyboardInterrupt:
+                raise
             except:
                 _log.exception("Failure updating {}".format(agent))
 
@@ -129,6 +131,8 @@ class _ModelUpdateThread(_threading.Thread):
         
         try:
             self.model.update()
+        except KeyboardInterrupt:
+            raise
         except:
             _log.exception("Update failed")
 
@@ -218,16 +222,15 @@ class Job(_ModelObject):
         self.fetch_url = None
         
     def update(self, context):
-        try:
-            data = self.fetch_data(context)
-        except:
-            _log.exception("Failure fetching data for {}".format(self))
-            return
+        data = self.fetch_data(context)
 
-        assert data is not None
+        if data is None:
+            return
             
         try:
             result = self.convert_result(data)
+        except KeyboardInterrupt:
+            raise
         except:
             _log.exception("Failure converting {}".format(self))
             return
@@ -309,20 +312,32 @@ class HttpJob(Job):
 
         if url is None:
             url = self.data_url
-        
-        response = session.get(url, headers=headers)
 
+        try:
+            response = session.get(url, headers=headers, timeout=30)
+        except _requests.exceptions.RequestException as e:
+            self.log_request_error(str(e), url, headers, None)
+            return
+            
         if response.status_code != 200:
-            _log.warn("Request URL:      {}".format(url))
+            message = str(response.status_code)
+            self.log_request_error(message, url, headers, response)
+            return
+
+        return response.json()
+
+    def log_request_error(self, message, url, headers, response):
+        _log.warn("HTTP request error: {}".format(message))
+        _log.warn("Request URL:      {}".format(url))
+
+        if headers is not None:
             _log.warn("Request headers:  {}".format(headers))
+
+        if response is not None:
             _log.warn("Response code:    {}".format(response.status_code))
             _log.warn("Response headers: {}".format(response.headers))
-
+                
             if response.status_code == 500:
                 _log.warn("Response text:    {}".format(response.text))
             else:
                 _log.debug("Response text:    {}".format(response.text))
-
-            raise Exception("HTTP request error")
-
-        return response.json()

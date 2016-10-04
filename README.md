@@ -24,3 +24,7 @@ Blinky collects and displays the status of CI jobs.
    track of its current and previous JobResults.
 
 See an [example configuration](https://github.com/ssorj/blinky/blob/master/misc/qpid.py).
+
+## Dependencies
+
+    tornado     python3-tornado
