@@ -6,9 +6,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -24,10 +24,16 @@ import requests as _requests
 
 _log = _logging.getLogger("blinky.jenkins")
 
+_status_mapping = {
+    "SUCCESS": PASSED,
+    "FAILURE": FAILED,
+    "UNSTABLE": FAILED,
+}
+
 class JenkinsAgent(HttpAgent):
     def __init__(self, model, name, url):
         super().__init__(model, name)
-        
+
         self.html_url = url
         self.data_url = "{}/api/json".format(self.html_url)
 
@@ -44,13 +50,16 @@ class JenkinsJob(HttpJob):
 
     def convert_result(self, data):
         number = data["number"]
-        
+
+        status = data["result"]
+        status = _status_mapping.get(status, status)
+
         html_url = "{}/{}".format(self.html_url, number)
         data_url = "{}/api/json".format(html_url)
-        
+
         result = JobResult()
         result.number = number
-        result.status = data["result"]
+        result.status = status
         result.start_time = data["timestamp"] / 1000.0
         result.duration = data["duration"] / 1000.0
         result.html_url = html_url

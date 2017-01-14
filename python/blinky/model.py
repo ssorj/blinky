@@ -30,6 +30,9 @@ import time as _time
 
 _log = _logging.getLogger("blinky.model")
 
+PASSED = "PASSED"
+FAILED = "FAILED"
+
 class Model:
     def __init__(self):
         self.update_thread = _ModelUpdateThread(self)
@@ -282,7 +285,7 @@ class Job(_ModelObject):
 class JobResult:
     def __init__(self):
         self.number = None      # Result sequence number
-        self.status = None      # Status string (SUCCESS, FAILURE, other)
+        self.status = None      # Status string (PASSED, FAILED, other)
         self.start_time = None  # Start time in seconds
         self.duration = None    # Duration in seconds
         self.html_url = None    # World Wide Web URL

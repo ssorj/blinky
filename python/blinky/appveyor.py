@@ -6,9 +6,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,10 +27,15 @@ from datetime import datetime as _datetime
 
 _log = _logging.getLogger("blinky.appveyor")
 
+_status_mapping = {
+    "success": PASSED,
+    "failed": FAILED,
+}
+
 class AppveyorAgent(HttpAgent):
     def __init__(self, model, name):
         super().__init__(model, name)
-    
+
         self.html_url = "https://ci.appveyor.com"
         self.data_url = "https://ci.appveyor.com"
 
@@ -63,7 +68,7 @@ class AppveyorJob(HttpJob):
 
         html_url = "{}/build/{}".format(self.html_url, version)
         data_url = "{}/build/{}".format(self.data_url, version)
-        
+
         result = JobResult()
         result.number = data["buildNumber"]
         result.status = status
@@ -73,8 +78,3 @@ class AppveyorJob(HttpJob):
         result.data_url = data_url
 
         return result
-
-_status_mapping = {
-    "success": "SUCCESS",
-    "failed": "FAILURE",
-}

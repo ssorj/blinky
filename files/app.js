@@ -164,19 +164,13 @@ var blinky = {
         var secondsNow = new Date().getTime() / 1000;
         var secondsAgo = secondsNow - currentResult.start_time;
         
-        if (currentResult.status === "SUCCESS") {
-            elem.setAttribute("class", "job-item success");
-        } else if (currentResult.status === "FAILURE") {
-            if (previousResult && previousResult.status === "SUCCESS") {
-                elem.setAttribute("class", "job-item failure blinky");
+        if (currentResult.status === "PASSED") {
+            elem.setAttribute("class", "job-item passed");
+        } else if (currentResult.status === "FAILED") {
+            if (previousResult && previousResult.status === "PASSED") {
+                elem.setAttribute("class", "job-item failed blinky");
             } else {
-                elem.setAttribute("class", "job-item failure");
-            }
-        } else if (currentResult.status === "UNSTABLE") {
-            if (previousResult && previousResult.status === "STABLE") {
-                elem.setAttribute("class", "job-item failure blinky");
-            } else {
-                elem.setAttribute("class", "job-item failure");
+                elem.setAttribute("class", "job-item failed");
             }
         }
 

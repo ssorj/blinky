@@ -27,8 +27,8 @@ sys.path.insert(0, os.path.join(home, "python"))
 from blinky.tape import *
 
 def main():
-    device_file = "/dev/ttyACM1"
-    data_url = "http://concordia.usersys.redhat.com:56720/data.json"
+    device_file = "/dev/ttyACM0"
+    data_url = "http://localhost:8000/data.json"
 
     try:
         device_file, data_url = sys.argv[1:3]

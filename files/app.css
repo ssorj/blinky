@@ -84,11 +84,11 @@ div.job-summary {
     text-align: center;
 }
 
-a.job-item.success div.job-summary {
+a.job-item.passed div.job-summary {
     background-color: rgb(63, 191, 127);
 }
 
-a.job-item.failure div.job-summary {
+a.job-item.failed div.job-summary {
     background-color: rgb(255, 63, 0);
 }
 

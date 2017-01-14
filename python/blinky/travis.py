@@ -6,9 +6,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,10 +27,15 @@ from datetime import datetime as _datetime
 
 _log = _logging.getLogger("blinky.travis")
 
+_status_mapping = {
+    "passed": PASSED,
+    "failed": FAILED,
+}
+
 class TravisAgent(HttpAgent):
     def __init__(self, model, name):
         super().__init__(model, name)
-    
+
         self.html_url = "https://travis-ci.org"
         self.data_url = "https://api.travis-ci.org"
 
@@ -52,9 +57,9 @@ class TravisJob(HttpJob):
             "User-Agent": "Blinky/0.1",
             "Accept": "application/vnd.travis-ci.2+json",
         }
-        
+
         return super().fetch_data(session, headers)
-        
+
     def convert_result(self, data):
         data = data["branch"]
 
@@ -68,7 +73,7 @@ class TravisJob(HttpJob):
             start_time = _calendar.timegm(start_time.timetuple())
 
         html_url = "https://travis-ci.org/{}/builds/{}".format(self.repo, data["id"])
-        
+
         result = JobResult()
         result.number = int(data["number"])
         result.status = status
@@ -77,8 +82,3 @@ class TravisJob(HttpJob):
         result.html_url = html_url
 
         return result
-
-_status_mapping = {
-    "passed": "SUCCESS",
-    "failed": "FAILURE",
-}
