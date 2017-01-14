@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,18 +21,17 @@
 import os
 import sys
 
-default_home = os.path.normpath("@blinky_home@")
-home = os.environ.get("BLINKY_HOME", default_home)
-
-sys.path.append(os.path.join(home, "python"))
+home = os.path.normpath("@blinky_home@")
+sys.path.insert(0, os.path.join(home, "python"))
 
 import brbn
+import logging
 import runpy
+import spindle
 
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from blinky.model import *
 from blinky.brbn import *
-from faller import *
 
 user_dir = os.path.expanduser("~")
 default_config_file = os.path.join(user_dir, ".config", "blinky", "config.py")
@@ -58,14 +57,16 @@ parser.add_argument("--config", default=default_config_file, metavar="FILE",
 parser.add_argument("--init-only", action="store_true",
                     help="Initialize then exit")
 
-_log = logger("blinky")
+_log = logging.getLogger("blinky")
 
 def main():
-    add_logged_module("blinky")
-    add_logged_module("brbn")
-    add_logged_module("tornado")
-    
-    setup_console_logging("info")
+    spindle.set_thread_name("blinky")
+
+    spindle.add_logger("blinky")
+    spindle.add_logger("brbn")
+    spindle.add_logger("tornado")
+
+    spindle.enable_console_logging("info")
 
     args = parser.parse_args()
     model = Model()
@@ -74,7 +75,7 @@ def main():
 
     if http_port is None:
         http_port = config.get("http_port", 8000)
-    
+
     app = Blinky(home, model)
     server = brbn.Server(app, port=http_port)
 
@@ -92,20 +93,20 @@ def main():
 
 def load_config(args, model):
     config_file = args.config
-        
+
     if not os.path.exists(config_file):
         config_file = os.path.join("/", "etc", "blinky", "config.py")
 
     if not os.path.exists(config_file):
         sys.exit("Error! No configuration found")
-        
+
     _log.info("Loading configuration from {}".format(config_file))
 
     init_globals = {"model": model}
     config = runpy.run_path(config_file, init_globals)
 
     return config
-    
+
 if __name__ == "__main__":
     try:
         main()

@@ -22,8 +22,17 @@ import re as _re
 import time as _time
 
 from pprint import pformat as _pformat
-from urllib.parse import quote_plus as _url_escape
-from urllib.parse import unquote_plus as _url_unescape
+
+try:
+    from urllib.parse import quote_plus as _url_escape
+except ImportError:
+    from urllib import quote_plus as _url_escape
+
+try:
+    from urllib.parse import unquote_plus as _url_unescape
+except ImportError:
+    from urllib import unquote_plus as _url_unescape
+
 from xml.sax.saxutils import escape as _xml_escape
 from xml.sax.saxutils import unescape as _xml_unescape
 

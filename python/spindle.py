@@ -6,9 +6,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -24,16 +24,17 @@ from __future__ import print_function
 import collections as _collections
 import logging as _logging
 import sys as _sys
+import threading as _threading
 
-_logged_modules = list()
+_logger_names = list()
 
 _levels_by_name = {
     "debug": _logging.DEBUG,
     "info": _logging.INFO,
     "warn": _logging.WARN,
     "error": _logging.ERROR,
-    "critical": _logging.CRITICAL
-    }
+    "critical": _logging.CRITICAL,
+}
 
 _handlers_by_logger = _collections.defaultdict(list)
 
@@ -49,7 +50,7 @@ def _add_logging(name, level, file):
 
     if isinstance(file, str):
         file = open(file, "a")
- 
+
     handler = _logging.StreamHandler(file)
 
     handler.setFormatter(_formatter)
@@ -62,7 +63,7 @@ def _add_logging(name, level, file):
     _handlers_by_logger[log].append(handler)
 
 def _remove_logging(name):
-    log = logger(name)
+    log = _logging.getLogger(name)
     handlers = _handlers_by_logger[log]
 
     for handler in handlers:
@@ -70,30 +71,25 @@ def _remove_logging(name):
 
     del _handlers_by_logger[log]
 
-def setup_initial_logging():
-    log_level = "warn"
-
-    for name in _logged_modules:
-        _add_logging(name, log_level, _sys.stderr)
-
-def setup_console_logging(level):
-    for name in _logged_modules:
+def disable_logging():
+    for name in _logger_names:
         _remove_logging(name)
 
-    for name in _logged_modules:
+def enable_console_logging(level):
+    for name in _logger_names:
         _add_logging(name, level, _sys.stderr)
 
-def setup_file_logging(level, file):
-    for name in _logged_modules:
-        _remove_logging(name)
+def enable_file_logging(level, file):
+    if file is None:
+        return
 
-    if file is not None:
-        for name in _logged_modules:
-            _add_logging(name, level, file)
+    for name in _logger_names:
+        _add_logging(name, level, file)
 
-def add_logged_module(name):
+def add_logger(name):
     assert isinstance(name, str), name
-    
-    _logged_modules.append(name)
 
-logger = _logging.getLogger
+    _logger_names.append(name)
+
+def set_thread_name(name):
+    _threading.current_thread().name = name

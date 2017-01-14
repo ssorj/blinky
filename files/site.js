@@ -144,22 +144,22 @@ var blinky = {
         summary.setAttribute("class", "job-summary");
         
         var field = blinky.createChild(summary, "div");
-        field.setAttribute("class", "summary-item summary-title");
+        field.setAttribute("class", "summary-component");
         field.textContent = component.name;
 
         var field = blinky.createChild(summary, "div");
-        field.setAttribute("class", "summary-item");
-        field.textContent = environment.name;
+        field.setAttribute("class", "summary-job");
+        field.textContent = job.name;
 
         var field = blinky.createChild(summary, "div");
-        field.setAttribute("class", "summary-item");
-        field.textContent = job.name;
+        field.setAttribute("class", "summary-environment");
+        field.textContent = environment.name;
 
         if (!currentResult) {
             return elem;
         }
 
-        elem.setAttribute("href", currentResult.html_url); // XXX this overrides the above
+        elem.setAttribute("href", currentResult.html_url);
 
         var secondsNow = new Date().getTime() / 1000;
         var secondsAgo = secondsNow - currentResult.start_time;
@@ -181,7 +181,7 @@ var blinky = {
         }
 
         var field = blinky.createChild(summary, "div");
-        field.setAttribute("class", "summary-item summary-start-time");
+        field.setAttribute("class", "summary-start-time");
         field.textContent = blinky.formatDuration(secondsAgo);
 
         var detail = blinky.createJobDetail(data, job);

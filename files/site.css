@@ -96,14 +96,16 @@ a.job-item.blinky div.job-summary {
     animation: blinky 3s steps(30, start) infinite;
 }
 
-div.summary-item {
-    margin: 0.2em 0;
+div.summary-component {
     font-size: 0.95em;
+    margin: 0.2em 0;
+    font-weight: 500;
 }
 
-div.summary-title {
-    font-weight: 500;
-    font-size: 1em;
+div.summary-job, div.summary-environment, div.summary-start-time {
+    font-size: 0.85em;
+    margin: 0.2em 0;
+    line-height: 1.2em;
 }
 
 a.job-item:hover div.job-detail {
@@ -135,66 +137,6 @@ div.job-detail th {
     to {
         visibility: hidden;
     }
-}
-
-body.mini * {
-    margin: 0.5em 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body.mini *:first-child {
-    margin-top: 0;
-}
-
-body.mini *:last-child {
-    margin-bottom: 0;
-}
-
-body.mini {
-    padding: 0;
-}
-
-body.mini div.group {
-    display: inline-block;
-    margin-top: 0;
-    margin-right: 2em;
-    margin-bottom: 1em;
-}
-
-body.mini div.job-container {
-}
-
-body.mini a.job-item {
-    margin: 0;
-    margin-right: 1px;
-}
-
-body.mini a.job-item:hover div.job-detail {
-    display: none;
-}
-
-body.mini h2 {
-    font-weight: 400;
-    margin: 0.5em 0;
-}
-
-body.mini div.job-summary {
-    height: 2.2em;
-    width: 2.2em;
-    padding: 0;
-    margin: 0;
-}
-
-body.mini div.summary-item {
-    display: none;
-    font-size: 0.75em;
-    font-weight: 500;
-    margin: 0;
-}
-
-body.mini div.summary-start-time {
-    display: inline;
 }
 
 #-head, #-foot {
