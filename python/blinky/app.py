@@ -26,7 +26,7 @@ import requests as _requests
 import sys as _sys
 import time as _time
 
-_log = _logging.getLogger("blinky.brbn")
+_log = _logging.getLogger("blinky.app")
 
 class Blinky(_brbn.Application):
     def __init__(self, home, model):

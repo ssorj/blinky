@@ -31,7 +31,7 @@ import spindle
 
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from blinky.model import *
-from blinky.brbn import *
+from blinky.app import *
 
 user_dir = os.path.expanduser("~")
 default_config_file = os.path.join(user_dir, ".config", "blinky", "config.py")

@@ -21,10 +21,8 @@
 import os
 import sys
 
-default = os.path.normpath("@blinky_home@")
-home_dir = os.environ.get("BLINKY_HOME", default)
-
-sys.path.append(os.path.join(home_dir, "python"))
+home = os.path.normpath("@blinky_home@")
+sys.path.insert(0, os.path.join(home, "python"))
 
 from blinky.tape import *
 
