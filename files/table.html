@@ -17,6 +17,10 @@
     </script>
   </head>
   <body>
+    <div id="global-nav">
+      <a href="index.html">Panel view</a>
+    </div>
+
     <h1>Blinky</h1>
 
     <table class="jobs" data-sortable="data-sortable">
@@ -26,18 +30,20 @@
           <th>Environment</th>
           <th>Job</th>
           <th>Agent</th>
+          <th data-sortable-type="numeric">Number</th>
           <th data-sortable-type="numeric">Time</th>
           <th data-sortable-type="numeric">Duration</th>
-          <th data-sortable-type="numeric">Number</th>
           <th>Curr status</th>
           <th>Prev status</th>
+          <th>Links</th>
         </tr>
       </thead>
       
-      <tbody id="content"></tbody>
+      <tbody id="content"><span class="notice">Loading</span></tbody>
     </table>
     
-    <p id="update-info"></p>
-    <p><a href="index.html">Panel view</a> | <a href="pretty.html?url=/data.json">Source data</a></p>
+    <p>
+      <span id="update-info"><span class="notice">Loading</span></span> &#8226; <a href="pretty.html?url=/data.json">Source data</a>
+    </p>
   </body>
 </html>

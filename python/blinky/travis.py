@@ -73,6 +73,7 @@ class TravisJob(HttpJob):
             start_time = _calendar.timegm(start_time.timetuple())
 
         html_url = "https://travis-ci.org/{}/builds/{}".format(self.repo, data["id"])
+        data_url = "{}/builds/{}".format(self.agent.data_url, data["id"])
 
         result = JobResult()
         result.number = int(data["number"])
@@ -80,5 +81,6 @@ class TravisJob(HttpJob):
         result.start_time = start_time
         result.duration = data["duration"]
         result.html_url = html_url
+        result.data_url = data_url
 
         return result

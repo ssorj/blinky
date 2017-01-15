@@ -39,6 +39,7 @@ pre, code {
 h1 {
     font-weight: 600;
     color: rgba(255, 0, 0, 0.6);
+    margin-top: 0;
 }
 
 h2 {
@@ -54,11 +55,24 @@ a {
 
 td, th {
     text-align: left;
-    padding: 0.1em 0.3em 0.1em 0;
 }
 
-th {
-    cursor: pointer;
+#global-nav {
+    float: right;
+}
+
+#global-nav a {
+    color: black;
+    padding: 0.4em 0.6em;
+    border: 1px solid black;
+}
+
+span.disabled {
+    color: gray;
+}
+
+span.notice {
+    font-style: italic;
 }
 
 div.job-container {
@@ -123,7 +137,6 @@ div.job-detail {
 }
 
 div.job-detail th, div.job-detail td {
-    text-align: left;
     vertical-align: top;
     padding: 0.2em;
 }
@@ -139,12 +152,22 @@ div.job-detail th {
     }
 }
 
-#-head, #-foot {
-    display: none;
-}
-
 table.jobs {
     width: 100%;
+    border-collapse: collapse;
+}
+
+table.jobs tbody tr:hover {
+    background: yellow;
+}
+
+table.jobs th, table.jobs td {
+    padding: 0.3em 0.2em 0.1em 0.2em;
+}
+
+table.jobs th {
+    cursor: pointer;
+    font-weight: 500;
 }
 
 table.jobs td:nth-child(5),

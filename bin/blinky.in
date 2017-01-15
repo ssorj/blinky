@@ -43,13 +43,10 @@ epilog = \
          "\n" \
          "  1. The FILE indicated by --config\n" \
          "  2. $HOME/.config/blinky/config.py\n" \
-         "  3. /etc/blinky/config.py.\n"
+         "  3. /etc/blinky/config.py\n"
 
 parser = ArgumentParser(description=description, epilog=epilog,
                         formatter_class=RawDescriptionHelpFormatter)
-
-parser.add_argument("--http-port", metavar="PORT",
-                    help="Serve HTTP at PORT (8000)")
 
 parser.add_argument("--config", default=default_config_file, metavar="FILE",
                     help="Load configuration from FILE")
@@ -71,13 +68,10 @@ def main():
     args = parser.parse_args()
     model = Model()
     config = load_config(args, model)
-    http_port = args.http_port
-
-    if http_port is None:
-        http_port = config.get("http_port", 8000)
 
     app = Blinky(home, model)
-    server = brbn.Server(app, port=http_port)
+    port = config.get("http_port", 8000)
+    server = brbn.Server(app, port=port)
 
     app.load()
     app.init()
@@ -86,7 +80,6 @@ def main():
     if args.init_only:
         return
 
-    model.update()
     model.update_thread.start()
 
     server.run()

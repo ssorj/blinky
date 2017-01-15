@@ -56,6 +56,12 @@ class JenkinsJob(HttpJob):
 
         html_url = "{}/{}".format(self.html_url, number)
         data_url = "{}/api/json".format(html_url)
+        tests_url = None
+
+        for action in data["actions"]:
+            if action.get("_class") == "hudson.tasks.junit.TestResultAction":
+                tests_url = "{}/testReport".format(html_url)
+                break
 
         result = JobResult()
         result.number = number
@@ -64,5 +70,6 @@ class JenkinsJob(HttpJob):
         result.duration = data["duration"] / 1000.0
         result.html_url = html_url
         result.data_url = data_url
+        result.tests_url = tests_url
 
         return result

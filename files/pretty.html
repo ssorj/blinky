@@ -34,7 +34,11 @@
                   text = text.replace(/"(https?:\/\/.*?)"/g, "\"<a href=\"pretty.html?url=$1\">$1</a>\"");
               }
 
-              $("#content").innerHTML = text;
+              try {
+                  $("#content").innerHTML = text;
+              } catch (e) {
+                  $("#content").textContent = "[Error! The data wasn't what I expected]";
+              }
           });
       });
     ]]>

@@ -67,7 +67,17 @@ class AppveyorJob(HttpJob):
         version = data["version"]
 
         html_url = "{}/build/{}".format(self.html_url, version)
-        data_url = "{}/build/{}".format(self.data_url, version)
+        data_url = "{}/api/projects/{}/{}/build/{}" \
+            .format(self.agent.data_url, self.account, self.project, version)
+        tests_url = None
+
+        try:
+            tests = data["jobs"][0]["testsCount"]
+        except:
+            tests = 0
+
+        if tests > 0:
+            tests_url = "{}/build/tests".format(self.html_url)
 
         result = JobResult()
         result.number = data["buildNumber"]
@@ -76,5 +86,6 @@ class AppveyorJob(HttpJob):
         result.duration = None
         result.html_url = html_url
         result.data_url = data_url
+        result.tests_url = tests_url
 
         return result

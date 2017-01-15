@@ -9,14 +9,21 @@
     <script src="app.js"></script>    
     <script>
       "use strict";
-      window.addEventListener("load", blinky.updateLights);
-      window.setInterval(blinky.updateLights, blinky.updateInterval);
+      window.addEventListener("load", blinky.updatePanel);
+      window.setInterval(blinky.updatePanel, blinky.updateInterval);
     </script>
   </head>
   <body>
+    <div id="global-nav">
+      <a href="table.html">Table view</a>
+    </div>
+
     <h1>Blinky</h1>
-    <div id="content"></div>
-    <p id="update-info"></p>
-    <p><a href="table.html">Table view</a> | <a href="pretty.html?url=/data.json">Source data</a></p>
+    
+    <div id="content"><span class="notice">Loading</span></div>
+    
+    <p>
+      <span id="update-info"><span class="notice">Loading</span></span> &#8226; <a href="pretty.html?url=/data.json">Source data</a>
+    </p>
   </body>
 </html>

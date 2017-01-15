@@ -35,6 +35,8 @@ FAILED = "FAILED"
 
 class Model:
     def __init__(self):
+        self.title = "Blinky"
+        
         self.update_thread = _ModelUpdateThread(self)
         self.update_time = None
         
@@ -53,6 +55,8 @@ class Model:
     def render_data(self):
         data = dict()
 
+        data["title"] = self.title
+        
         if self.update_time is None:
             raise Exception("The model isn't updated yet")
 
@@ -285,11 +289,12 @@ class Job(_ModelObject):
 class JobResult:
     def __init__(self):
         self.number = None      # Result sequence number
-        self.status = None      # Status string (PASSED, FAILED, other)
+        self.status = None      # Status string (PASSED, FAILED, [other])
         self.start_time = None  # Start time in seconds
         self.duration = None    # Duration in seconds
         self.html_url = None    # World Wide Web URL
         self.data_url = None    # Usually a JSON URL
+        self.tests_url = None   # Test results
 
     def render_data(self):
         data = dict()
@@ -300,14 +305,21 @@ class JobResult:
         data["duration"] = self.duration
         data["html_url"] = self.html_url
         data["data_url"] = self.data_url
+        data["tests_url"] = self.tests_url
         
         return data
 
 class HttpAgent(Agent):
     def update(self):
+        start = _time.time()
+        
         with _requests.Session() as session:
             for job in self.jobs:
                 job.update(session)
+
+        elapsed = _time.time() - start
+
+        _log.info("{} updated {} jobs in {:.2f} s".format(self, len(self.jobs), elapsed))
 
 class HttpJob(Job):
     def fetch_data(self, session, headers=None):
