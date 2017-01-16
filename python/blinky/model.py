@@ -6,9 +6,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -36,10 +36,10 @@ FAILED = "FAILED"
 class Model:
     def __init__(self):
         self.title = "Blinky"
-        
+
         self.update_thread = _ModelUpdateThread(self)
         self.update_time = None
-        
+
         self.groups = list()
         self.components = list()
         self.environments = list()
@@ -56,7 +56,7 @@ class Model:
         data = dict()
 
         data["title"] = self.title
-        
+
         if self.update_time is None:
             raise Exception("The model isn't updated yet")
 
@@ -64,13 +64,13 @@ class Model:
         time = _time.mktime(time) + 1e-6 * self.update_time.microsecond
 
         # data["update_time"] = time
-        
+
         groups_data = data["groups"] = dict()
         components_data = data["components"] = dict()
         environments_data = data["environments"] = dict()
         agents_data = data["agents"] = dict()
         jobs_data = data["jobs"] = dict()
-        
+
         for group in self.groups:
             groups_data[group.id] = group.render_data()
 
@@ -87,10 +87,10 @@ class Model:
             jobs_data[job.id] = job.render_data()
 
         return data
-        
+
     def update(self):
         _log.info("Updating {}".format(self))
-        
+
         for agent in self.agents:
             try:
                 agent.update()
@@ -105,13 +105,13 @@ class Model:
 
         prev_json = self.json or ""
         prev_digest = self.json_digest or "-"
-        
+
         self.json = _json.dumps(data, sort_keys=True).encode("utf-8")
         self.json_digest = _hashlib.sha1(self.json).hexdigest()
 
         _log.debug("Prev json: {} {}".format(prev_digest, len(prev_json)))
         _log.debug("Curr json: {} {}".format(self.json_digest, len(self.json)))
-        
+
         _log.info("Updated at {}".format(self.update_time))
 
 class _ModelUpdateThread(_threading.Thread):
@@ -126,7 +126,7 @@ class _ModelUpdateThread(_threading.Thread):
 
     def start(self):
         _log.info("Starting update thread")
-        
+
         super().start()
 
     def run(self):
@@ -135,7 +135,7 @@ class _ModelUpdateThread(_threading.Thread):
 
     def update_model(self):
         self.scheduler.enter(120, 1, self.update_model)
-        
+
         try:
             self.model.update()
         except KeyboardInterrupt:
@@ -148,7 +148,7 @@ class _ModelObject:
         assert isinstance(model, Model), model
         assert isinstance(collection, list), collection
         assert isinstance(name, str), name
-        
+
         self.model = model
         self.id = len(collection)
         self.name = name
@@ -162,17 +162,17 @@ class _ModelObject:
         data = dict()
         data["id"] = self.id
         data["name"] = self.name
-            
+
         if hasattr(self, "jobs"):
             data["job_ids"] = [x.id for x in self.jobs]
-        
+
         return data
-        
+
 class Group(_ModelObject):
     def __init__(self, model, name):
         super().__init__(model, model.groups, name)
         self.jobs = list()
-        
+
 class Component(_ModelObject):
     def __init__(self, model, name):
         super().__init__(model, model.components, name)
@@ -201,7 +201,7 @@ class Agent(_ModelObject):
         data["data_url"] = self.data_url
 
         return data
-    
+
 class Job(_ModelObject):
     def __init__(self, model, group, component, environment, agent, name):
         super().__init__(model, model.jobs, name)
@@ -223,26 +223,33 @@ class Job(_ModelObject):
         self.agent.jobs.append(self)
 
         self.results = _collections.deque(maxlen=2)
+        self.update_failures = 0
 
         self.html_url = None
         self.data_url = None
         self.fetch_url = None
-        
+
     def update(self, context):
         data = self.fetch_data(context)
 
         if data is None:
+            self.update_failures += 1
             return
-            
+
         try:
             result = self.convert_result(data)
         except KeyboardInterrupt:
             raise
         except:
+            self.update_failures += 1
+
             _log.exception("Failure converting {}".format(self))
+
             return
 
         assert result is not None
+
+        self.update_failures = 0
 
         if self.current_result and self.current_result.number == result.number:
             self.results[-1] = result
@@ -251,7 +258,7 @@ class Job(_ModelObject):
 
     def fetch_data(self, context):
         raise NotImplementedError()
-        
+
     def convert_result(self, data):
         raise NotImplementedError()
 
@@ -284,6 +291,8 @@ class Job(_ModelObject):
         if self.current_result:
             data["current_result"] = self.current_result.render_data()
 
+        data["update_failures"] = self.update_failures
+
         return data
 
 class JobResult:
@@ -306,13 +315,13 @@ class JobResult:
         data["html_url"] = self.html_url
         data["data_url"] = self.data_url
         data["tests_url"] = self.tests_url
-        
+
         return data
 
 class HttpAgent(Agent):
     def update(self):
         start = _time.time()
-        
+
         with _requests.Session() as session:
             for job in self.jobs:
                 job.update(session)
@@ -329,11 +338,11 @@ class HttpJob(Job):
             url = self.data_url
 
         try:
-            response = session.get(url, headers=headers, timeout=30)
+            response = session.get(url, headers=headers, timeout=10)
         except _requests.exceptions.RequestException as e:
             self.log_request_error(str(e), url, headers, None)
             return
-            
+
         if response.status_code != 200:
             message = str(response.status_code)
             self.log_request_error(message, url, headers, response)
@@ -351,7 +360,7 @@ class HttpJob(Job):
         if response is not None:
             _log.warn("Response code:    {}".format(response.status_code))
             _log.warn("Response headers: {}".format(response.headers))
-                
+
             if response.status_code == 500:
                 _log.warn("Response text:    {}".format(response.text))
             else:

@@ -68,7 +68,7 @@ var blinky = {
     createObjectDataLink: function(parent, obj) {
         var elem = blinky.createChild(parent, "a");
 
-        elem.setAttribute("href", "pretty.html?url=" + encodeURIComponent(obj.data_url));
+        elem.setAttribute("href", "pretty-data.html?url=" + encodeURIComponent(obj.data_url));
         elem.setAttribute("target", "blinky");
         elem.textContent = obj.name;
 
@@ -189,15 +189,23 @@ var blinky = {
         var secondsNow = new Date().getTime() / 1000;
         var secondsAgo = secondsNow - currentResult.start_time;
 
+        var classes = ["job-item"];
+
+        if (job.update_failures >= 10) {
+            classes.push("stale");
+        }
+        
         if (currentResult.status === "PASSED") {
-            elem.setAttribute("class", "job-item passed");
+            classes.push("passed");
         } else if (currentResult.status === "FAILED") {
+            classes.push("failed");
+
             if (previousResult && previousResult.status === "PASSED") {
-                elem.setAttribute("class", "job-item failed blinky");
-            } else {
-                elem.setAttribute("class", "job-item failed");
+                classes.push("blinky");
             }
         }
+
+        elem.setAttribute("class", classes.join(" "));
 
         var field = blinky.createChild(summary, "div");
         field.setAttribute("class", "summary-start-time");
@@ -286,31 +294,8 @@ var blinky = {
             var component = data.components[job.component_id];
             var environment = data.environments[job.environment_id];
             var agent = data.agents[job.agent_id];
-            var currentResult = job.current_result;
-            var previousResult = job.previous_result;
-
-            var timeSeconds = null;
-            var durationSeconds = null;
-
-            var timeAgo = "-";
-            var duration = "-";
-            var number = "-"
-            var status = "-"
-            var previousStatus = "-";
-
-            if (currentResult !== null) {
-                timeSeconds = currentResult.start_time;
-                durationSeconds = currentResult.duration;
-
-                timeAgo = blinky.formatDuration(nowSeconds - timeSeconds) + " ago";
-                duration = blinky.formatDuration(currentResult.duration);
-                number = currentResult.number;
-                status = currentResult.status;
-            }
-
-            if (previousResult !== null) {
-                previousStatus = previousResult.status;
-            }
+            var currResult = job.current_result;
+            var prevResult = job.previous_result;
 
             var tr = blinky.createChild(newContent, "tr");
             var td = null;
@@ -320,34 +305,53 @@ var blinky = {
             blinky.createChild(tr, "td").textContent = environment.name;
 
             td = blinky.createChild(tr, "td");
-            link = blinky.createObjectLink(td, job);
-
+            blinky.createObjectLink(td, job);
+            
             td = blinky.createChild(tr, "td");
-            link = blinky.createObjectLink(td, agent);
+            blinky.createObjectLink(td, agent);
 
-            td = blinky.createChild(tr, "td");
-            link = blinky.createObjectLink(td, currentResult);
-            link.textContent = number;
+            if (currResult === null) {
+                blinky.createChild(tr, "td");
+                blinky.createChild(tr, "td");
+                blinky.createChild(tr, "td");
+                blinky.createChild(tr, "td");
+                blinky.createChild(tr, "td");
+                blinky.createChild(tr, "td");
+            } else {
+                var timeSeconds = currResult.start_time;
+                var timeAgo = blinky.formatDuration(nowSeconds - timeSeconds) + " ago";
+                var duration = blinky.formatDuration(currResult.duration);
+                
+                td = blinky.createChild(tr, "td");
+                link = blinky.createObjectLink(td, currResult);
+                link.textContent = currResult.number;
 
-            td = blinky.createChild(tr, "td");
-            td.setAttribute("data-value", timeSeconds);
-            td.textContent = timeAgo;
+                td = blinky.createChild(tr, "td");
+                td.setAttribute("data-value", timeSeconds);
+                td.textContent = timeAgo;
 
-            td = blinky.createChild(tr, "td");
-            td.setAttribute("data-value", durationSeconds);
-            td.textContent = duration;
+                td = blinky.createChild(tr, "td");
+                td.setAttribute("data-value", currResult.duration);
+                td.textContent = duration;
 
-            blinky.createChild(tr, "td").textContent = status;
-            blinky.createChild(tr, "td").textContent = previousStatus;
+                td = blinky.createChild(tr, "td")
+                td.textContent = currResult.status;
 
-            td = blinky.createChild(tr, "td");
+                blinky.createChild(tr, "td");
 
-            link = blinky.createObjectDataLink(td, currentResult);
-            link.textContent = "Data";
+                if (prevResult !== null) {
+                    td.textContent = prevResult.status;
+                }
 
-            blinky.createText(td, ", ");
+                td = blinky.createChild(tr, "td");
 
-            link = blinky.createResultTestsLink(td, currentResult);
+                link = blinky.createObjectDataLink(td, currResult);
+                link.textContent = "Data";
+
+                blinky.createText(td, ", ");
+
+                link = blinky.createResultTestsLink(td, currResult);
+            }
         }
 
         oldContent.parentNode.replaceChild(newContent, oldContent);

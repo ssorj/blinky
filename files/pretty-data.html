@@ -31,7 +31,7 @@
 
                   text = JSON.stringify(json, null, 4);
                   text = hljs.highlight("json", text).value;
-                  text = text.replace(/"(https?:\/\/.*?)"/g, "\"<a href=\"pretty.html?url=$1\">$1</a>\"");
+                  text = text.replace(/"(https?:\/\/.*?)"/g, "\"<a href=\"pretty-data.html?url=$1\">$1</a>\"");
               }
 
               try {

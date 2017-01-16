@@ -106,6 +106,10 @@ a.job-item.failed div.job-summary {
     background-color: rgb(255, 63, 0);
 }
 
+a.job-item.stale div.job-summary {
+    background-color: rgb(223, 223, 223);
+}
+
 a.job-item.blinky div.job-summary {
     animation: blinky 3s steps(30, start) infinite;
 }
