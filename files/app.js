@@ -310,14 +310,7 @@ var blinky = {
             td = blinky.createChild(tr, "td");
             blinky.createObjectLink(td, agent);
 
-            if (currResult === null) {
-                blinky.createChild(tr, "td");
-                blinky.createChild(tr, "td");
-                blinky.createChild(tr, "td");
-                blinky.createChild(tr, "td");
-                blinky.createChild(tr, "td");
-                blinky.createChild(tr, "td");
-            } else {
+            if (currResult) {
                 var timeSeconds = currResult.start_time;
                 var timeAgo = blinky.formatDuration(nowSeconds - timeSeconds) + " ago";
                 var duration = blinky.formatDuration(currResult.duration);
@@ -337,9 +330,9 @@ var blinky = {
                 td = blinky.createChild(tr, "td")
                 td.textContent = currResult.status;
 
-                blinky.createChild(tr, "td");
+                td = blinky.createChild(tr, "td");
 
-                if (prevResult !== null) {
+                if (prevResult) {
                     td.textContent = prevResult.status;
                 }
 
@@ -351,6 +344,13 @@ var blinky = {
                 blinky.createText(td, ", ");
 
                 link = blinky.createResultTestsLink(td, currResult);
+            } else {
+                blinky.createChild(tr, "td");
+                blinky.createChild(tr, "td");
+                blinky.createChild(tr, "td");
+                blinky.createChild(tr, "td");
+                blinky.createChild(tr, "td");
+                blinky.createChild(tr, "td");
             }
         }
 
@@ -360,7 +360,7 @@ var blinky = {
     renderTitle: function(data) {
         var elem = $("h1");
 
-        if (elem === null) {
+        if (!elem) {
             return;
         }
 
@@ -370,7 +370,7 @@ var blinky = {
     renderUpdateInfo: function(request) {
         var elem = $("#update-info");
 
-        if (elem === null) {
+        if (!elem) {
             return;
         }
 
@@ -409,7 +409,7 @@ var blinky = {
 
         request.open("GET", "/data.json");
 
-        if (blinky.etag !== null) {
+        if (blinky.etag) {
             request.setRequestHeader("If-None-Match", blinky.etag);
         }
 
