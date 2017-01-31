@@ -27,7 +27,7 @@ import time as _time
 
 _log = _logging.getLogger("blinky.tape")
 
-class Tape:
+class BlinkyTape:
     def __init__(self, device_path, url):
         self.device = _Device(device_path)
         self.url = url
@@ -164,17 +164,11 @@ class _Light:
         if current_result is None:
             return _black
         
-        if current_result["status"] == "SUCCESS":
+        if current_result["status"] == "PASSED":
             return _green
 
-        if current_result["status"] == "FAILURE":
-            if previous_result and previous_result["status"] == "SUCCESS":
-                return _blinky_red
-            
-            return _red
-
-        if current_result["status"] == "UNSTABLE":
-            if previous_result and previous_result["status"] == "STABLE":
+        if current_result["status"] == "FAILED":
+            if previous_result and previous_result["status"] == "PASSED":
                 return _blinky_red
             
             return _red

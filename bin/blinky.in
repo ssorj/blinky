@@ -71,6 +71,7 @@ def main():
 
     app = Blinky(home, model)
     port = config.get("http_port", 8000)
+
     server = brbn.Server(app, port=port)
 
     app.load()

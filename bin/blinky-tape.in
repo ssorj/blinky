@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -24,23 +24,70 @@ import sys
 home = os.path.normpath("@blinky_home@")
 sys.path.insert(0, os.path.join(home, "python"))
 
+import logging
+import runpy
+import spindle
+
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from blinky.tape import *
 
+user_dir = os.path.expanduser("~")
+default_config_file = os.path.join(user_dir, ".config", "blinky", "blinky-tape-config.py")
+
+description = "Blinky tape displays CI status on a strip of colored lights"
+
+epilog = \
+         "Blinky tape looks for its configuration in the following locations:\n" \
+         "\n" \
+         "  1. The FILE indicated by --config\n" \
+         "  2. $HOME/.config/blinky/blinky-tape-config.py\n" \
+         "  3. /etc/blinky/blinky-tape-config.py\n"
+
+parser = ArgumentParser(description=description, epilog=epilog,
+                        formatter_class=RawDescriptionHelpFormatter)
+
+parser.add_argument("--config", default=default_config_file, metavar="FILE",
+                    help="Load configuration from FILE")
+
+parser.add_argument("--init-only", action="store_true",
+                    help="Initialize then exit")
+
+_log = logging.getLogger("blinky.tape")
+
 def main():
-    device_file = "/dev/ttyACM0"
-    data_url = "http://localhost:8000/data.json"
+    spindle.set_thread_name("blinky-tape")
+    spindle.add_logger("blinky")
+    spindle.enable_console_logging("info")
 
-    try:
-        device_file, data_url = sys.argv[1:3]
-    except ValueError:
-        pass
-    
-    tape = Tape(device_file, data_url)
+    args = parser.parse_args()
+    config = load_config(args)
 
-    tape.update()
+    device_file = config.get("device_file", "/dev/ttyACM0")
+    data_url = config.get("data_url", "http://localhost:8000/data.json")
+
+    tape = BlinkyTape(device_file, data_url)
+
+    if args.init_only:
+        return
+
     tape.update_thread.start()
     tape.run()
-                
+
+def load_config(args):
+    config_file = args.config
+
+    if not os.path.exists(config_file):
+        config_file = os.path.join("/", "etc", "blinky", "blinky-tape-config.py")
+
+    if not os.path.exists(config_file):
+        sys.exit("Error! No configuration found")
+
+    _log.info("Loading configuration from {}".format(config_file))
+
+    config = runpy.run_path(config_file)
+
+    return config
+
 if __name__ == "__main__":
     try:
         main()

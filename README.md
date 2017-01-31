@@ -28,3 +28,4 @@ See an [example configuration](https://github.com/ssorj/blinky/blob/master/misc/
 ## Dependencies
 
     tornado     python3-tornado
+    pyserial    python3-pyserial
