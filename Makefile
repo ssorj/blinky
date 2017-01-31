@@ -1,6 +1,3 @@
-# 1. dnf install python3-pyserial python3-requests python3-tornado
-# 2. sudo usermod -G wheel,dialout jross
-
 DESTDIR := ""
 PREFIX := /usr/local
 home = ${PREFIX}/share/blinky
@@ -50,7 +47,8 @@ test: clean install
 .PHONY: devel
 devel: PREFIX := ${PWD}/install
 devel: clean install
-	${PREFIX}/bin/blinky
+	${PREFIX}/bin/blinky --init-only
+	${PREFIX}/bin/blinky-tape --init-only
 
 .PHONY: update-%
 update-%:

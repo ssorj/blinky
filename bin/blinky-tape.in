@@ -34,7 +34,7 @@ from blinky.tape import *
 user_dir = os.path.expanduser("~")
 default_config_file = os.path.join(user_dir, ".config", "blinky", "blinky-tape-config.py")
 
-description = "Blinky tape displays CI status on a strip of colored lights"
+description = "Blinky Tape displays CI status on a strip of colored lights"
 
 epilog = \
          "Blinky tape looks for its configuration in the following locations:\n" \
@@ -66,11 +66,11 @@ def main():
     data_url = config.get("data_url", "http://localhost:8000/data.json")
 
     tape = BlinkyTape(device_file, data_url)
+    tape.reverse_lights = config.get("reverse_lights", tape.reverse_lights)
 
     if args.init_only:
         return
 
-    tape.update_thread.start()
     tape.run()
 
 def load_config(args):

@@ -27,5 +27,8 @@ See an [example configuration](https://github.com/ssorj/blinky/blob/master/misc/
 
 ## Dependencies
 
-    tornado     python3-tornado
     pyserial    python3-pyserial
+    tornado     python3-tornado
+    requests    python3-requests
+
+<!-- # 2. sudo usermod -G wheel,dialout jross -->

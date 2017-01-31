@@ -6,9 +6,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -28,9 +28,11 @@ import time as _time
 _log = _logging.getLogger("blinky.tape")
 
 class BlinkyTape:
-    def __init__(self, device_path, url):
-        self.device = _Device(device_path)
-        self.url = url
+    def __init__(self, device_file, data_url):
+        self.device = _Device(device_file)
+        self.data_url = data_url
+
+        self.reverse_lights = False
 
         self.lights = [_black for i in range(60)]
         self.scheduler = _sched.scheduler()
@@ -39,10 +41,10 @@ class BlinkyTape:
 
     def update(self):
         self.lights[59] = _black
-        
+
         try:
             with _requests.Session() as session:
-                data = session.get(self.url).json()
+                data = session.get(self.data_url).json()
         except Exception as e:
             _log.warn("Failure requesting new data: {}".format(str(e)))
             self.lights[59] = _blinky_yellow
@@ -51,6 +53,17 @@ class BlinkyTape:
         self.update_lights(data)
 
     def update_lights(self, data):
+        _log.info("Updating lights")
+
+        lights = self._convert_data(data)
+
+        if self.reverse_lights:
+            lights.reverse()
+
+        self.lights = lights
+
+    def _convert_data(self, data):
+        lights = [_black for i in range(60)]
         index = 0
 
         for group_id in sorted(data["groups"]):
@@ -59,16 +72,19 @@ class BlinkyTape:
             for job_id in group["job_ids"]:
                 job = data["jobs"][str(job_id)]
 
-                if index >= 58:
-                    return
+                if index >= 59:
+                    return lights
 
-                self.lights[index] = _Light.for_job(job)
-
+                lights[index] = _Light.for_job(job)
                 index += 1
 
             index +=1
 
+        return lights
+
     def run(self):
+        self.update_thread.start()
+
         while True:
             try:
                 self.do_run()
@@ -77,7 +93,7 @@ class BlinkyTape:
             except:
                 _log.exception("Error!")
                 _time.sleep(5)
-            
+
     def do_run(self):
         with self.device:
             self.tick()
@@ -119,15 +135,15 @@ class _UpdateThread(_threading.Thread):
 
     def start(self):
         _log.info("Starting update thread")
-        
+
         super().start()
-        
+
     def run(self):
         self.update_tape()
         self.scheduler.run()
 
     def update_tape(self):
-        self.scheduler.enter(30, 1, self.update_tape)
+        self.scheduler.enter(60, 1, self.update_tape)
 
         try:
             self.tape.update()
@@ -160,17 +176,17 @@ class _Light:
     def for_job(job):
         current_result = job["current_result"]
         previous_result = job["previous_result"]
-        
+
         if current_result is None:
             return _black
-        
+
         if current_result["status"] == "PASSED":
             return _green
 
         if current_result["status"] == "FAILED":
             if previous_result and previous_result["status"] == "PASSED":
                 return _blinky_red
-            
+
             return _red
 
         return _gray
