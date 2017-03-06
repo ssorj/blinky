@@ -1,6 +1,10 @@
+VERSION := $(shell cat VERSION.txt)
+
 DESTDIR := ""
 PREFIX := /usr/local
-home = ${PREFIX}/share/blinky
+BLINKY_HOME = ${PREFIX}/share/blinky
+
+export PATH := ${PWD}/install/bin:${PATH}
 
 .PHONY: default
 default: devel
@@ -21,34 +25,27 @@ clean:
 
 .PHONY: build
 build:
-	mkdir -p build/bin
-	mkdir -p build/misc
-	scripts/configure-file bin/blinky.in build/bin/blinky blinky_home ${home}
-	scripts/configure-file bin/blinky-tape.in build/bin/blinky-tape blinky_home ${home}
-	scripts/configure-file misc/blinky.service.in build/misc/blinky.service PREFIX ${PREFIX}
-	scripts/configure-file misc/blinky-tape.service.in build/misc/blinky-tape.service PREFIX ${PREFIX}
+	scripts/configure-file -a blinky_home=${BLINKY_HOME} bin/blinky.in build/bin/blinky
+	scripts/configure-file -a blinky_home=${BLINKY_HOME} bin/blinky-tape.in build/bin/blinky-tape
+	scripts/configure-file -a PREFIX=${PREFIX} misc/blinky.service.in build/misc/blinky.service
+	scripts/configure-file -a PREFIX=${PREFIX} misc/blinky-tape.service.in build/misc/blinky-tape.service
 
 .PHONY: install
 install: build
-	scripts/install-files python ${DESTDIR}${home}/python \*.py
-	scripts/install-files files ${DESTDIR}${home}/files \*
-	install -d ${DESTDIR}${PREFIX}/bin
-	install -d ${DESTDIR}${PREFIX}/lib/systemd/system
-	install -m 755 build/bin/blinky ${DESTDIR}${PREFIX}/bin/blinky
-	install -m 755 build/bin/blinky-tape ${DESTDIR}${PREFIX}/bin/blinky-tape
-	install -m 644 build/misc/blinky.service ${DESTDIR}${PREFIX}/lib/systemd/system/blinky.service
-	install -m 644 build/misc/blinky-tape.service ${DESTDIR}${PREFIX}/lib/systemd/system/blinky-tape.service
+	scripts/install-files -n \*.py python ${DESTDIR}${BLINKY_HOME}/python
+	scripts/install-files files ${DESTDIR}${BLINKY_HOME}/files
+	scripts/install-files build/bin ${DESTDIR}${PREFIX}/bin
+	scripts/install-files -n \*.service build/misc ${DESTDIR}${PREFIX}/lib/systemd/system
 
 .PHONY: test
 test: PREFIX := ${PWD}/install
 test: clean install
-	${PREFIX}/bin/blinky --init-only
+	scripts/test-blinky
+	scripts/test-blinky-tape
 
 .PHONY: devel
 devel: PREFIX := ${PWD}/install
 devel: clean install
-	${PREFIX}/bin/blinky --init-only
-	${PREFIX}/bin/blinky-tape --init-only
 
 .PHONY: update-%
 update-%:
