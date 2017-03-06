@@ -32,9 +32,20 @@ See an [example configuration](https://github.com/ssorj/blinky/blob/master/misc/
 
 ### Dependencies
 
-    pyserial    python3-pyserial
-    tornado     python3-tornado
-    requests    python3-requests
+| Name                  | Fedora package
+| --------------------- | ---
+| Python 3              | python3
+| PySerial              | python3-pyserial
+| Requests              | python3-requests
+| Tornado               | python3-tornado
+
+### Using Fedora packages
+
+    $ sudo dnf enable jross/ssorj
+    $ sudo dnf install blinky
+
+If you don't have `dnf`, use the repo files at
+<https://copr.fedorainfracloud.org/coprs/jross/ssorj/>.
 
 ### Installing from source
 
@@ -62,9 +73,9 @@ and runs a sanity test.
     devel.sh              # Sets up your project environment for development
     Makefile              # Defines the build and test targets
     bin/                  # Command-line tools
-    scripts/              # Scripts called by Makefile rules
-    docs/                 # Documentation and notes
+    files/                # Web server files
     python/               # Python library code
+    scripts/              # Scripts called by Makefile rules
     build/                # The default build location
     install/              # The development-mode install location
 
