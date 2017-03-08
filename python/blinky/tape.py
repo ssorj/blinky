@@ -37,7 +37,6 @@ class BlinkyTape:
         self.reverse_lights = False
 
         self.lights = [_black for i in range(60)]
-        self.scheduler = _sched.scheduler()
 
         self.update_thread = _UpdateThread(self)
 
@@ -72,7 +71,7 @@ class BlinkyTape:
             group = data["groups"][str(group_id)]
 
             for job_id in group["job_ids"]:
-                if index >= 58:
+                if index >= 59:
                     return lights
 
                 job = data["jobs"][str(job_id)]
@@ -98,11 +97,11 @@ class BlinkyTape:
     def do_run(self):
         with self.device:
             self.tick()
-            self.scheduler.run()
+            _time.sleep(2.9)
+            self.blink()
+            _time.sleep(0.1)
 
     def tick(self):
-        self.scheduler.enter(2.9, 1, self.blink)
-
         if self.debug:
             chars = [x.char for x in self.lights]
             print("".join(chars))
@@ -112,8 +111,6 @@ class BlinkyTape:
         self.send_colors(colors)
 
     def blink(self):
-        self.scheduler.enter(0.1, 1, self.tick)
-
         colors = [_black.color if x.blinky else x.color for x in self.lights]
 
         self.send_colors(colors)
