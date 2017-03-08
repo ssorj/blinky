@@ -92,25 +92,26 @@ class BlinkyTape:
                 raise
             except:
                 _log.exception("Error!")
-                _time.sleep(5)
+                _time.sleep(30)
 
     def do_run(self):
         with self.device:
-            if self.debug:
-                chars = [x.char for x in self.lights]
-                print("".join(chars))
+            while True:
+                if self.debug:
+                    chars = [x.char for x in self.lights]
+                    print("".join(chars))
 
-            colors = [x.color for x in self.lights]
+                colors = [x.color for x in self.lights]
 
-            self.send_colors(colors)
+                self.send_colors(colors)
 
-            _time.sleep(2.9)
+                _time.sleep(2.9)
 
-            colors = [_black.color if x.blinky else x.color for x in self.lights]
+                colors = [_black.color if x.blinky else x.color for x in self.lights]
 
-            self.send_colors(colors)
+                self.send_colors(colors)
 
-            _time.sleep(0.1)
+                _time.sleep(0.1)
 
     def send_colors(self, colors):
         data = [chr(r) + chr(g) + chr(b) for r, g, b in colors] + [chr(255)]
