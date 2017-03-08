@@ -96,44 +96,23 @@ class BlinkyTape:
 
     def do_run(self):
         with self.device:
-            self.tick()
+            if self.debug:
+                chars = [x.char for x in self.lights]
+                print("".join(chars))
+
+            colors = [x.color for x in self.lights]
+
+            self.send_colors(colors)
+
             _time.sleep(2.9)
-            self.blink()
+
+            colors = [_black.color if x.blinky else x.color for x in self.lights]
+
+            self.send_colors(colors)
+
             _time.sleep(0.1)
 
-    def tick(self):
-        if self.debug:
-            chars = [x.char for x in self.lights]
-            print("".join(chars))
-
-        colors = [x.color for x in self.lights]
-
-        self.send_colors(colors)
-
-    def blink(self):
-        colors = [_black.color if x.blinky else x.color for x in self.lights]
-
-        self.send_colors(colors)
-
     def send_colors(self, colors):
-        if self.debug:
-            chars = list()
-
-            for color in colors:
-                if color == (90, 0, 0):
-                    chars.append("r")
-                elif color == (30, 60, 0):
-                    chars.append("g")
-                elif color == (0, 0, 0):
-                    chars.append(" ")
-                else:
-                    chars.append("o")
-
-                _red = _Light(90, 0, 0, "r")
-                _green = _Light(30, 60, 0, "g")
-
-            print("".join(chars))
-
         data = [chr(r) + chr(g) + chr(b) for r, g, b in colors] + [chr(255)]
         data = "".join(data)
         data = _codecs.latin_1_encode(data)[0]
