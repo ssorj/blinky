@@ -19,6 +19,7 @@
 
 import codecs as _codecs
 import logging as _logging
+import os as _os
 import requests as _requests
 import sched as _sched
 import serial as _serial
@@ -32,6 +33,7 @@ class BlinkyTape:
         self.device = _Device(device_file)
         self.data_url = data_url
 
+        self.debug = "BLINKY_DEBUG" in _os.environ
         self.reverse_lights = False
 
         self.lights = [_black for i in range(60)]
@@ -70,11 +72,10 @@ class BlinkyTape:
             group = data["groups"][str(group_id)]
 
             for job_id in group["job_ids"]:
-                job = data["jobs"][str(job_id)]
-
                 if index >= 59:
                     return lights
 
+                job = data["jobs"][str(job_id)]
                 lights[index] = _Light.for_job(job)
                 index += 1
 
@@ -100,20 +101,41 @@ class BlinkyTape:
             self.scheduler.run()
 
     def tick(self):
-        self.scheduler.enter(0.1, 1, self.blink)
+        self.scheduler.enter(2.9, 1, self.blink)
+
+        if self.debug:
+            out = list()
+
+            for light in self.lights:
+                out.append(light.char)
+
+            print("".join(out))
 
         colors = [x.color() for x in self.lights]
 
         self.send_colors(colors)
 
     def blink(self):
-        self.scheduler.enter(2.9, 1, self.tick)
+        self.scheduler.enter(0.1, 1, self.tick)
 
         colors = [_black.color() if x.blinky else x.color() for x in self.lights]
 
         self.send_colors(colors)
 
     def send_colors(self, colors):
+        if self.debug:
+            out = list()
+
+            for color in colors:
+                if color == (30, 30, 30):
+                    out.append("A")
+                elif color == (0, 0, 0):
+                    out.append(" ")
+                else:
+                    out.append("c")
+
+            print("".join(out))
+
         data = [chr(r) + chr(g) + chr(b) for r, g, b in colors]
         data.append(chr(255)) # Control
 
@@ -162,10 +184,11 @@ class _Device:
         self.serial.close()
 
 class _Light:
-    def __init__(self, red, green, blue, blinky=False):
+    def __init__(self, red, green, blue, char, blinky=False):
         self.red = red
         self.green = green
         self.blue = blue
+        self.char = char
 
         self.blinky = blinky
 
@@ -191,16 +214,16 @@ class _Light:
 
         return _gray
 
-_black = _Light(0, 0, 0)
-_white = _Light(254, 254, 254)
-_gray = _Light(30, 30, 30)
+_black = _Light(0, 0, 0, " ")
+_white = _Light(254, 254, 254, "w")
+_gray = _Light(30, 30, 30, "a")
 
-_red = _Light(90, 0, 0)
-_green = _Light(30, 60, 0)
-_blue = _Light(0, 30, 60)
-_yellow = _Light(45, 45, 0)
+_red = _Light(90, 0, 0, "r")
+_green = _Light(30, 60, 0, "g")
+_blue = _Light(0, 30, 60, "b")
+_yellow = _Light(45, 45, 0, "y")
 
-_blinky_red = _Light(90, 0, 0, True)
-_blinky_green = _Light(30, 60, 0, True)
-_blinky_blue = _Light(0, 30, 60, True)
-_blinky_yellow = _Light(45, 45, 0, True)
+_blinky_red = _Light(90, 0, 0, "R", True)
+_blinky_green = _Light(30, 60, 0, "G", True)
+_blinky_blue = _Light(0, 30, 60, "B", True)
+_blinky_yellow = _Light(45, 45, 0, "Y", True)
