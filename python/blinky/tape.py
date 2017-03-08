@@ -30,7 +30,7 @@ _log = _logging.getLogger("blinky.tape")
 
 class BlinkyTape:
     def __init__(self, device_file, data_url):
-        self.device = _Device(device_file)
+        self.device = _Device(self, device_file)
         self.data_url = data_url
 
         self.debug = "BLINKY_DEBUG" in _os.environ
@@ -72,7 +72,7 @@ class BlinkyTape:
             group = data["groups"][str(group_id)]
 
             for job_id in group["job_ids"]:
-                if index >= 59:
+                if index >= 58:
                     return lights
 
                 job = data["jobs"][str(job_id)]
@@ -104,47 +104,47 @@ class BlinkyTape:
         self.scheduler.enter(2.9, 1, self.blink)
 
         if self.debug:
-            out = list()
+            chars = [x.char for x in self.lights]
+            print("".join(chars))
 
-            for light in self.lights:
-                out.append(light.char)
-
-            print("".join(out))
-
-        colors = [x.color() for x in self.lights]
+        colors = [x.color for x in self.lights]
 
         self.send_colors(colors)
 
     def blink(self):
         self.scheduler.enter(0.1, 1, self.tick)
 
-        colors = [_black.color() if x.blinky else x.color() for x in self.lights]
+        colors = [_black.color if x.blinky else x.color for x in self.lights]
 
         self.send_colors(colors)
 
     def send_colors(self, colors):
         if self.debug:
-            out = list()
+            chars = list()
 
             for color in colors:
-                if color == (30, 30, 30):
-                    out.append("A")
+                if color == (90, 0, 0):
+                    chars.append("r")
+                elif color == (30, 60, 0):
+                    chars.append("g")
                 elif color == (0, 0, 0):
-                    out.append(" ")
+                    chars.append(" ")
                 else:
-                    out.append("c")
+                    chars.append("o")
 
-            print("".join(out))
+                _red = _Light(90, 0, 0, "r")
+                _green = _Light(30, 60, 0, "g")
 
-        data = [chr(r) + chr(g) + chr(b) for r, g, b in colors]
-        data.append(chr(255)) # Control
+            print("".join(chars))
 
+        data = [chr(r) + chr(g) + chr(b) for r, g, b in colors] + [chr(255)]
         data = "".join(data)
         data = _codecs.latin_1_encode(data)[0]
 
-        self.device.serial.write(data)
-        self.device.serial.flush()
-        self.device.serial.flushInput()
+        if self.device.serial is not None:
+            self.device.serial.write(data)
+            self.device.serial.flush()
+            self.device.serial.flushInput()
 
 class _UpdateThread(_threading.Thread):
     def __init__(self, tape):
@@ -173,15 +173,22 @@ class _UpdateThread(_threading.Thread):
             _log.exception("Update failed")
 
 class _Device:
-    def __init__(self, path):
+    def __init__(self, tape, path):
+        self.tape = tape
         self.path = path
+
         self.serial = None
 
     def __enter__(self):
-        self.serial = _serial.Serial(self.path, 115200)
+        try:
+            self.serial = _serial.Serial(self.path, 115200)
+        except:
+            if not self.tape.debug:
+                raise
 
     def __exit__(self, type, value, traceback):
-        self.serial.close()
+        if self.serial is not None:
+            self.serial.close()
 
 class _Light:
     def __init__(self, red, green, blue, char, blinky=False):
@@ -192,8 +199,7 @@ class _Light:
 
         self.blinky = blinky
 
-    def color(self):
-        return (self.red, self.green, self.blue)
+        self.color = self.red, self.green, self.blue
 
     @staticmethod
     def for_job(job):
