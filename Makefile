@@ -4,7 +4,8 @@ DESTDIR := ""
 PREFIX := /usr/local
 BLINKY_HOME = ${PREFIX}/share/blinky
 
-export PATH := ${PWD}/install/bin:${PATH}
+export PATH := install/bin:${PATH}
+export PYTHONPATH := python:${PYTHONPATH}
 
 .PHONY: default
 default: devel
