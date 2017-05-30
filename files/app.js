@@ -81,10 +81,10 @@ var blinky = {
 
             elem.setAttribute("class", "disabled");
             elem.textContent = "Tests";
-                
+
             return elem;
         }
-        
+
         var elem = blinky.createChild(parent, "a");
 
         elem.setAttribute("href", result.tests_url);
@@ -161,7 +161,6 @@ var blinky = {
         var previousResult = job.previous_result;
 
         var elem = document.createElement("a");
-        elem.setAttribute("class", "job-item");
         elem.setAttribute("href", job.html_url);
         elem.setAttribute("target", "blinky");
 
@@ -180,7 +179,12 @@ var blinky = {
         field.setAttribute("class", "summary-environment");
         field.textContent = environment.name;
 
+        var classes = ["job-item"];
+
         if (!currentResult) {
+            classes.push("no-data");
+            elem.setAttribute("class", classes.join(" "));
+
             return elem;
         }
 
@@ -189,12 +193,10 @@ var blinky = {
         var secondsNow = new Date().getTime() / 1000;
         var secondsAgo = secondsNow - currentResult.start_time;
 
-        var classes = ["job-item"];
-
         if (job.update_failures >= 10) {
-            classes.push("stale");
+            classes.push("stale-data");
         }
-        
+
         if (currentResult.status === "PASSED") {
             classes.push("passed");
         } else if (currentResult.status === "FAILED") {
@@ -306,7 +308,7 @@ var blinky = {
 
             td = blinky.createChild(tr, "td");
             blinky.createObjectLink(td, job);
-            
+
             td = blinky.createChild(tr, "td");
             blinky.createObjectLink(td, agent);
 
@@ -314,7 +316,7 @@ var blinky = {
                 var timeSeconds = currResult.start_time;
                 var timeAgo = blinky.formatDuration(nowSeconds - timeSeconds) + " ago";
                 var duration = blinky.formatDuration(currResult.duration);
-                
+
                 td = blinky.createChild(tr, "td");
                 link = blinky.createObjectLink(td, currResult);
                 link.textContent = currResult.number;
@@ -398,7 +400,7 @@ var blinky = {
                 if (!request.responseText) {
                     return;
                 }
-                
+
                 var data = JSON.parse(request.responseText);
 
                 blinky.renderTitle(data);

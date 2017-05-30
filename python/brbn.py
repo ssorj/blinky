@@ -401,10 +401,11 @@ class Request:
         self.response_headers.append((name, str(value)))
     
     def respond(self, status, content=None, content_type=None):
-        csp = "default-src: 'self'"
+        csp = "default-src 'self'"
         sts = "max-age=31536000"
 
-        self.add_response_header("Content-Security-Policy", csp)
+        # XXX
+        # self.add_response_header("Content-Security-Policy", csp)
         self.add_response_header("Strict-Transport-Security", sts)
     
         if self.session is not None:
