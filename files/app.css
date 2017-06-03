@@ -75,6 +75,37 @@ span.notice {
     font-style: italic;
 }
 
+div.category-selector {
+    display: flex;
+    flex-flow: row wrap;
+    margin-bottom: 2em;
+}
+
+div.category-selector > a {
+    margin: 0 1em 0 0;
+    padding: 0 0 0.4em 0;
+    color: black;
+    border-bottom: 0.2em solid white;
+}
+
+div.category-selector > a.selected, div.category-selector > a:hover {
+    border-bottom: 0.2em solid black;
+}
+
+div.category {
+    display: flex;
+    flex-flow: row wrap;
+    margin: 0;
+}
+
+div.category.invisible {
+    display: none;
+}
+
+div.group {
+    margin: 0 2em 1em 0;
+}
+
 div.job-container {
     display: flex;
     flex-flow: row wrap;
@@ -107,7 +138,7 @@ a.job-item.failed div.job-summary {
 }
 
 a.job-item.no-data div.job-summary, a.job-item.stale-data div.job-summary {
-    border: 0.25em solid rgb(191, 191, 191);
+    border: 0.2em solid rgb(191, 191, 191);
     background-color: white;
     color: rgb(159, 159, 159);
 }

@@ -6,11 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <link rel="stylesheet" href="app.css" type="text/css"/>
     <link rel="icon" href="/images/icon.png" type="image/png" sizes="32x32"/>
-    <script src="app.js"></script>    
+    <script src="app.js"></script>
     <script>
       "use strict";
+
       window.addEventListener("load", blinky.updatePanel);
       window.setInterval(blinky.updatePanel, blinky.updateInterval);
+
+      window.addEventListener("hashchange", blinky.updateCategorySelection);
+      window.addEventListener("update", blinky.updateCategorySelection);
     </script>
   </head>
   <body>
@@ -19,9 +23,9 @@
     </div>
 
     <h1></h1>
-    
+
     <div id="content"><span class="notice">Loading</span></div>
-    
+
     <p>
       <span id="update-info"><span class="notice">Loading</span></span> &#8226; <a href="pretty-data.html?url=/data.json">Data</a>
     </p>

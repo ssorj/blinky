@@ -21,8 +21,15 @@
 
 "use strict";
 
-var $ = function(selectors) {
-    return document.querySelector(selectors);
+var $ = document.querySelector.bind(document);
+var $$ = document.querySelectorAll.bind(document);
+
+Element.prototype.$ = function() {
+  return this.querySelector.apply(this, arguments);
+};
+
+Element.prototype.$$ = function() {
+  return this.querySelectorAll.apply(this, arguments);
 };
 
 var blinky = {
@@ -39,64 +46,58 @@ var blinky = {
         request.send(null);
     },
 
-    createChild: function(parent, tag) {
+    createElem: function(parent, tag) {
         var child = document.createElement(tag);
-
         parent.appendChild(child);
-
         return child;
     },
 
     createText: function(parent, text) {
         var node = document.createTextNode(text);
-
         parent.appendChild(node);
-
         return node;
     },
 
-    createObjectLink: function(parent, obj) {
-        var elem = blinky.createChild(parent, "a");
+    createTextElem: function(parent, tag, text) {
+        var elem = blinky.createElem(parent, tag);
 
-        elem.setAttribute("href", obj.html_url);
-        elem.setAttribute("target", "blinky");
-        elem.textContent = obj.name;
-
-        return elem;
-    },
-
-    createObjectDataLink: function(parent, obj) {
-        var elem = blinky.createChild(parent, "a");
-
-        elem.setAttribute("href", "pretty-data.html?url=" + encodeURIComponent(obj.data_url));
-        elem.setAttribute("target", "blinky");
-        elem.textContent = obj.name;
-
-        return elem;
-    },
-
-    createResultTestsLink: function(parent, result) {
-        if (!result.tests_url) {
-            var elem = blinky.createChild(parent, "span");
-
-            elem.setAttribute("class", "disabled");
-            elem.textContent = "Tests";
-
-            return elem;
+        if (text) {
+            blinky.createText(elem, text);
         }
 
-        var elem = blinky.createChild(parent, "a");
+        return elem;
+    },
 
-        elem.setAttribute("href", result.tests_url);
-        elem.setAttribute("target", "blinky");
-        elem.textContent = "Tests";
+    createDiv: function(parent, class_) {
+        var elem = blinky.createElem(parent, "div");
 
+        if (class_) {
+            elem.setAttribute("class", class_);
+        }
+
+        return elem;
+    },
+
+    createTextDiv: function(parent, class_, text) {
+        var elem = blinky.createDiv(parent, class_);
+
+        if (text) {
+            blinky.createText(elem, text);
+        }
+
+        return elem;
+    },
+
+    createLink: function(parent, href, text) {
+        var elem = blinky.createTextElem(parent, "a", text);
+        elem.setAttribute("href", href);
         return elem;
     },
 
     formatDuration: function(seconds) {
-        if (seconds < 0)
+        if (seconds < 0) {
             seconds = 0;
+        }
 
         var minutes = Math.floor(seconds / 60);
         var hours = Math.floor(seconds / 3600);
@@ -122,164 +123,224 @@ var blinky = {
         return Math.floor(seconds) + "s";
     },
 
+    createObjectLink: function(parent, obj) {
+        var elem = blinky.createLink(parent, obj.html_url, obj.name);
+        elem.setAttribute("target", "blinky");
+        return elem;
+    },
+
+    createObjectDataLink: function(parent, obj) {
+        var url = "pretty-data.html?url=" + encodeURIComponent(obj.data_url);
+        var elem = blinky.createLink(parent, url, obj.name);
+
+        elem.setAttribute("target", "blinky");
+
+        return elem;
+    },
+
+    createResultTestsLink: function(parent, result) {
+        if (!result.tests_url) {
+            var elem = blinky.createTextElem(parent, "span", "Tests");
+            elem.setAttribute("class", "disabled");
+            return elem;
+        }
+
+        var elem = blinky.createLink(parent, result.test_url, "Tests");
+        elem.setAttribute("target", "blinky");
+
+        return elem;
+    },
+
+    createCategorySelector: function(parent, categories) {
+        var selector = blinky.createDiv(parent, "category-selector");
+        var link = blinky.createLink(selector, "#all", "All");
+
+        for (var categoryId in categories) {
+            var category = categories[categoryId];
+            var link = blinky.createLink(selector, "#" + category.key, category.name);
+        }
+    },
+
+    updateCategorySelection: function(event) {
+        event.preventDefault();
+
+        var hash = window.location.hash;
+
+        if (!hash) {
+            hash = "#all";
+        }
+
+        var links = $$(".category-selector > a");
+
+        for (var i = 0; i < links.length; i++) {
+            var elem = links[i];
+
+            if (elem.getAttribute("href") == hash) {
+                elem.classList.add("selected");
+            } else {
+                elem.classList.remove("selected");
+            }
+        }
+
+        var selectedCategory = $(hash);
+        var categories = $$(".category");
+
+        for (var i = 0; i < categories.length; i++) {
+            var elem = categories[i];
+
+            if (hash === "#all") {
+                elem.className = "category";
+                continue;
+            }
+
+            if (elem == selectedCategory) {
+                elem.classList.remove("invisible");
+            } else {
+                elem.classList.add("invisible");
+            }
+        }
+    },
+
     renderPanel: function(data) {
         var oldContent = $("#content");
         var newContent = document.createElement("div");
         newContent.setAttribute("id", "content");
 
-        var groups = data.groups;
+        var categories = data.categories;
 
-        for (var groupId in groups) {
-            var group = groups[groupId];
+        blinky.createCategorySelector(newContent, categories);
 
-            var groupElem = blinky.createChild(newContent, "div");
-            groupElem.setAttribute("class", "group");
+        for (var categoryId in categories) {
+            var category = categories[categoryId];
+            var categoryElem = blinky.createDiv(newContent, "category");
 
-            var h2 = blinky.createChild(groupElem, "h2");
-            h2.textContent = group.name;
+            categoryElem.setAttribute("id", category.key);
 
-            var containerElem = blinky.createChild(groupElem, "div");
-            containerElem.setAttribute("class", "job-container");
+            var groupIds = category.group_ids;
 
-            var jobIds = group.job_ids;
+            for (var i = 0; i < groupIds.length; i++) {
+                var group = data.groups[groupIds[i]];
+                var groupElem = blinky.createDiv(categoryElem, "group");
 
-            for (var i = 0; i < jobIds.length; i++) {
-                var job = data.jobs[jobIds[i]];
+                blinky.createTextElem(groupElem, "h2", group.name);
 
-                var resultElem = blinky.createJob(data, job);
-                containerElem.appendChild(resultElem);
+                var container = blinky.createDiv(groupElem, "job-container");
+                var jobIds = group.job_ids;
+
+                for (var j = 0; j < jobIds.length; j++) {
+                    var job = data.jobs[jobIds[j]];
+                    blinky.createJob(container, data, job);
+                }
             }
         }
 
         oldContent.parentNode.replaceChild(newContent, oldContent);
     },
 
-    createJob: function(data, job) {
+    createJob: function(parent, data, job) {
         var component = data.components[job.component_id];
         var environment = data.environments[job.environment_id];
-        var currentResult = job.current_result;
-        var previousResult = job.previous_result;
+        var currResult = job.current_result;
+        var prevResult = job.previous_result;
 
-        var elem = document.createElement("a");
-        elem.setAttribute("href", job.html_url);
+        var elem = blinky.createLink(parent, job.html_url, null);
+
         elem.setAttribute("target", "blinky");
+        elem.classList.add("job-item");
 
-        var summary = blinky.createChild(elem, "div");
-        summary.setAttribute("class", "job-summary");
+        var summary = blinky.createDiv(elem, "job-summary");
 
-        var field = blinky.createChild(summary, "div");
-        field.setAttribute("class", "summary-component");
-        field.textContent = component.name;
+        blinky.createTextDiv(summary, "summary-component", component.name);
+        blinky.createTextDiv(summary, "summary-job", job.name);
+        blinky.createTextDiv(summary, "summary-environment", environment.name);
 
-        var field = blinky.createChild(summary, "div");
-        field.setAttribute("class", "summary-job");
-        field.textContent = job.name;
-
-        var field = blinky.createChild(summary, "div");
-        field.setAttribute("class", "summary-environment");
-        field.textContent = environment.name;
-
-        var classes = ["job-item"];
-
-        if (!currentResult) {
-            classes.push("no-data");
-            elem.setAttribute("class", classes.join(" "));
-
+        if (!currResult) {
+            elem.classList.add("no-data");
             return elem;
         }
 
-        elem.setAttribute("href", currentResult.html_url);
+        elem.setAttribute("href", currResult.html_url);
 
-        var secondsNow = new Date().getTime() / 1000;
-        var secondsAgo = secondsNow - currentResult.start_time;
+        if (currResult.status === "PASSED") {
+            elem.classList.add("passed");
+        } else if (currResult.status === "FAILED") {
+            elem.classList.add("failed");
 
-        if (job.update_failures >= 10) {
-            classes.push("stale-data");
-        }
-
-        if (currentResult.status === "PASSED") {
-            classes.push("passed");
-        } else if (currentResult.status === "FAILED") {
-            classes.push("failed");
-
-            if (previousResult && previousResult.status === "PASSED") {
-                classes.push("blinky");
+            if (prevResult && prevResult.status === "PASSED") {
+                elem.classList.add("blinky");
             }
         }
 
-        elem.setAttribute("class", classes.join(" "));
+        if (job.update_failures >= 10) {
+            elem.classList.add("stale-data");
+        }
 
-        var field = blinky.createChild(summary, "div");
-        field.setAttribute("class", "summary-start-time");
-        field.textContent = blinky.formatDuration(secondsAgo);
+        var secondsNow = new Date().getTime() / 1000;
+        var secondsAgo = secondsNow - currResult.start_time;
 
-        var detail = blinky.createJobDetail(data, job);
-        elem.appendChild(detail);
+        blinky.createTextDiv(summary, "summary-start-time", blinky.formatDuration(secondsAgo));
+        blinky.createJobDetail(elem, data, job);
 
         return elem;
     },
 
-    createJobDetail: function(data, job) {
+    createJobDetail: function(parent, data, job) {
         var component = data.components[job.component_id];
         var environment = data.environments[job.environment_id];
         var agent = data.agents[job.agent_id];
-        var currentResult = job.current_result;
-        var previousResult = job.previous_result;
+        var currResult = job.current_result;
+        var prevResult = job.previous_result;
 
-        var elem = document.createElement("div");
-        elem.setAttribute("class", "job-detail");
+        var elem = blinky.createDiv(parent, "job-detail");
 
-        var table = blinky.createChild(elem, "table");
-        var tbody = blinky.createChild(table, "tbody");
+        var table = blinky.createElem(elem, "table");
+        var tbody = blinky.createElem(table, "tbody");
         var td = null;
         var link = null;
 
-        blinky.createJobDetailField(tbody, "Component").textContent = component.name;
-        blinky.createJobDetailField(tbody, "Environment").textContent = environment.name;
+        blinky.createJobDetailField(tbody, "Component", component.name);
+        blinky.createJobDetailField(tbody, "Environment", environment.name);
 
-        td = blinky.createJobDetailField(tbody, "Agent");
+        td = blinky.createJobDetailField(tbody, "Agent", null);
         blinky.createObjectLink(td, agent);
 
-        td = blinky.createJobDetailField(tbody, "Job");
+        td = blinky.createJobDetailField(tbody, "Job", null);
         blinky.createObjectLink(td, job);
 
-        if (currentResult) {
-            var duration = blinky.formatDuration(currentResult.duration);
+        if (currResult) {
+            var duration = blinky.formatDuration(currResult.duration);
             var secondsNow = new Date().getTime() / 1000;
-            var secondsAgo = secondsNow - currentResult.start_time;
+            var secondsAgo = secondsNow - currResult.start_time;
             var timeAgo = blinky.formatDuration(secondsAgo) + " ago";
 
-            td = blinky.createJobDetailField(tbody, "Number");
-            blinky.createObjectLink(td, currentResult).textContent = currentResult.number;
+            td = blinky.createJobDetailField(tbody, "Number", null);
+            blinky.createObjectLink(td, currResult, currResult.number);
 
-            blinky.createJobDetailField(tbody, "Time").textContent = timeAgo;
-            blinky.createJobDetailField(tbody, "Duration").textContent = duration;
+            blinky.createJobDetailField(tbody, "Time", timeAgo);
+            blinky.createJobDetailField(tbody, "Duration", duration);
+            blinky.createJobDetailField(tbody, "Status", currResult.status);
 
-            blinky.createJobDetailField(tbody, "Status").textContent = currentResult.status;
-
-            if (previousResult) {
-                blinky.createJobDetailField(tbody, "Prev status").textContent = previousResult.status;
+            if (prevResult) {
+                blinky.createJobDetailField(tbody, "Prev status", prevResult.status);
             }
 
-            td = blinky.createJobDetailField(tbody, "Links");
+            td = blinky.createJobDetailField(tbody, "Links", null);
 
-            link = blinky.createObjectDataLink(td, currentResult)
+            link = blinky.createObjectDataLink(td, currResult)
             link.textContent = "Data";
 
             blinky.createText(td, ", ");
 
-            link = blinky.createResultTestsLink(td, currentResult);
+            link = blinky.createResultTestsLink(td, currResult);
         }
 
         return elem;
     },
 
-    createJobDetailField: function(tbody, name) {
-        var tr = blinky.createChild(tbody, "tr");
-        var th = blinky.createChild(tr, "th");
-        var td = blinky.createChild(tr, "td");
-
-        th.textContent = name;
+    createJobDetailField: function(tbody, name, text) {
+        var tr = blinky.createElem(tbody, "tr");
+        var th = blinky.createTextElem(tr, "th", name);
+        var td = blinky.createTextElem(tr, "td", text);
 
         return td;
     },
@@ -299,17 +360,17 @@ var blinky = {
             var currResult = job.current_result;
             var prevResult = job.previous_result;
 
-            var tr = blinky.createChild(newContent, "tr");
+            var tr = blinky.createElem(newContent, "tr");
             var td = null;
             var link = null;
 
-            blinky.createChild(tr, "td").textContent = component.name;
-            blinky.createChild(tr, "td").textContent = environment.name;
+            blinky.createElem(tr, "td").textContent = component.name;
+            blinky.createElem(tr, "td").textContent = environment.name;
 
-            td = blinky.createChild(tr, "td");
+            td = blinky.createElem(tr, "td");
             blinky.createObjectLink(td, job);
 
-            td = blinky.createChild(tr, "td");
+            td = blinky.createElem(tr, "td");
             blinky.createObjectLink(td, agent);
 
             if (currResult) {
@@ -317,28 +378,28 @@ var blinky = {
                 var timeAgo = blinky.formatDuration(nowSeconds - timeSeconds) + " ago";
                 var duration = blinky.formatDuration(currResult.duration);
 
-                td = blinky.createChild(tr, "td");
+                td = blinky.createElem(tr, "td");
                 link = blinky.createObjectLink(td, currResult);
                 link.textContent = currResult.number;
 
-                td = blinky.createChild(tr, "td");
+                td = blinky.createElem(tr, "td");
                 td.setAttribute("data-value", timeSeconds);
                 td.textContent = timeAgo;
 
-                td = blinky.createChild(tr, "td");
+                td = blinky.createElem(tr, "td");
                 td.setAttribute("data-value", currResult.duration);
                 td.textContent = duration;
 
-                td = blinky.createChild(tr, "td")
+                td = blinky.createElem(tr, "td")
                 td.textContent = currResult.status;
 
-                td = blinky.createChild(tr, "td");
+                td = blinky.createElem(tr, "td");
 
                 if (prevResult) {
                     td.textContent = prevResult.status;
                 }
 
-                td = blinky.createChild(tr, "td");
+                td = blinky.createElem(tr, "td");
 
                 link = blinky.createObjectDataLink(td, currResult);
                 link.textContent = "Data";
@@ -347,12 +408,12 @@ var blinky = {
 
                 link = blinky.createResultTestsLink(td, currResult);
             } else {
-                blinky.createChild(tr, "td");
-                blinky.createChild(tr, "td");
-                blinky.createChild(tr, "td");
-                blinky.createChild(tr, "td");
-                blinky.createChild(tr, "td");
-                blinky.createChild(tr, "td");
+                blinky.createElem(tr, "td");
+                blinky.createElem(tr, "td");
+                blinky.createElem(tr, "td");
+                blinky.createElem(tr, "td");
+                blinky.createElem(tr, "td");
+                blinky.createElem(tr, "td");
             }
         }
 
@@ -406,6 +467,8 @@ var blinky = {
                 blinky.renderTitle(data);
 
                 handler(data);
+
+                window.dispatchEvent(new Event("update"));
             }
         };
 
@@ -418,11 +481,11 @@ var blinky = {
         request.send(null);
     },
 
-    updatePanel: function() {
+    updatePanel: function(event) {
         blinky.update(blinky.renderPanel);
     },
 
-    updateTable: function() {
+    updateTable: function(event) {
         blinky.update(blinky.renderTable);
     }
 };

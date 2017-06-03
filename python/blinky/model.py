@@ -40,6 +40,7 @@ class Model:
         self.update_thread = _ModelUpdateThread(self)
         self.update_time = None
 
+        self.categories = list()
         self.groups = list()
         self.components = list()
         self.environments = list()
@@ -63,13 +64,17 @@ class Model:
         time = self.update_time.timetuple()
         time = _time.mktime(time) + 1e-6 * self.update_time.microsecond
 
-        # data["update_time"] = time
+        # data["update_time"] = time # XXX
 
+        categories_data = data["categories"] = dict()
         groups_data = data["groups"] = dict()
         components_data = data["components"] = dict()
         environments_data = data["environments"] = dict()
         agents_data = data["agents"] = dict()
         jobs_data = data["jobs"] = dict()
+
+        for category in self.categories:
+            categories_data[category.id] = category.render_data()
 
         for group in self.groups:
             groups_data[group.id] = group.render_data()
@@ -168,19 +173,51 @@ class _ModelObject:
 
         return data
 
+class Category(_ModelObject):
+    def __init__(self, model, name, key):
+        super().__init__(model, model.categories, name)
+
+        assert isinstance(key, str), key
+
+        self.key = key
+
+        self.groups = list()
+
+    def render_data(self):
+        data = super().render_data()
+        data["key"] = self.key
+        data["group_ids"] = [x.id for x in self.groups]
+
+        return data
+
 class Group(_ModelObject):
-    def __init__(self, model, name):
+    def __init__(self, model, category, name):
         super().__init__(model, model.groups, name)
+
+        assert isinstance(category, Category), category
+
+        self.category = category
+
         self.jobs = list()
+
+        self.category.groups.append(self)
+
+    def render_data(self):
+        data = super().render_data()
+        data["category_id"] = self.category.id
+
+        return data
 
 class Component(_ModelObject):
     def __init__(self, model, name):
         super().__init__(model, model.components, name)
+
         self.jobs = list()
 
 class Environment(_ModelObject):
     def __init__(self, model, name):
         super().__init__(model, model.environments, name)
+
         self.jobs = list()
 
 class Agent(_ModelObject):
@@ -210,7 +247,6 @@ class Job(_ModelObject):
         assert isinstance(component, Component), component
         assert isinstance(environment, Environment), environment
         assert isinstance(agent, Agent), agent
-        assert isinstance(name, str), name
 
         self.group = group
         self.component = component
