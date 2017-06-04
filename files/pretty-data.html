@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="app.css" type="text/css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/styles/default.min.css"/>
     <link rel="icon" href="/images/icon.png" type="image/png" sizes="32x32"/>
-    <script src="app.js"></script>    
+    <script src="app.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/highlight.min.js"></script>
     <script>
     <![CDATA[
@@ -16,16 +16,22 @@
       var qs = window.location.search;
       var url = decodeURIComponent(qs.substring(5));
       var proxy = "proxy?url=" + encodeURIComponent(url);
-      
+
       window.addEventListener("load", function(event) {
           var link = $("#link");
+
           link.setAttribute("href", url);
           link.textContent = url;
-      
-          blinky.sendRequest(proxy, function(request) {
+
+          blinky.sendGetRequest(proxy, function(request) {
+              if (request.status !== 200) {
+                  $("#content").textContent = "[Error! My request for data failed]";
+                  return;
+              }
+
               var text = request.responseText;
               var contentType = request.getResponseHeader("Content-Type");
-              
+
               if (contentType.indexOf("application/json") === 0) {
                   var json = JSON.parse(text);
 
@@ -37,7 +43,7 @@
               try {
                   $("#content").innerHTML = text;
               } catch (e) {
-                  $("#content").textContent = "[Error! The data wasn't what I expected]";
+                  $("#content").textContent = "[Error! The data isn't what I expected]";
               }
           });
       });
@@ -46,7 +52,7 @@
   </head>
   <body>
     <p><a id="link" href=""></a></p>
-    
+
     <pre id="content" class="json">[Loading...]</pre>
   </body>
 </html>

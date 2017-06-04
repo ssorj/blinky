@@ -6,13 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <link rel="stylesheet" href="app.css" type="text/css"/>
     <link rel="icon" href="/images/icon.png" type="image/png" sizes="32x32"/>
-    <script type="text/javascript" src="app.js"></script>    
+    <script type="text/javascript" src="app.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sortable/0.8.0/js/sortable.min.js"></script>
     <script>
       "use strict";
+
       window.addEventListener("load", blinky.updateTable);
+
       Sortable.init();
-      // XXX Disabled because the user's sort is lost on update      
+
+      // XXX Disabled because the user's sort is lost on update
       // window.setInterval(blinky.updateTable, blinky.updateInterval);
     </script>
   </head>
@@ -38,10 +41,10 @@
           <th>Links</th>
         </tr>
       </thead>
-      
+
       <tbody id="content"><span class="notice">Loading</span></tbody>
     </table>
-    
+
     <p>
       <span id="update-info"><span class="notice">Loading</span></span> &#8226; <a href="pretty-data.html?url=/data.json">Data</a>
     </p>

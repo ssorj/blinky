@@ -33,23 +33,79 @@ Element.prototype.$$ = function() {
 };
 
 var blinky = {
-    sendRequest: function(url, handler) {
+    openGetRequest: function(url, handler) {
         var request = new XMLHttpRequest();
 
         request.onreadystatechange = function() {
-            if (request.readyState === 4 && request.status === 200) {
+            if (request.readyState === 4) {
                 handler(request);
             }
         };
 
         request.open("GET", url);
-        request.send(null);
+
+        return request;
     },
 
-    createElem: function(parent, tag) {
-        var child = document.createElement(tag);
-        parent.appendChild(child);
-        return child;
+    sendGetRequest: function(url, handler) {
+        var request = blinky.openGetRequest(url, function(request) {
+            handler(request);
+        });
+
+        request.send(null);
+
+        return request;
+    },
+
+    parseQueryString: function(str) {
+        if (str.startsWith("?")) { // XXX compat
+            str = str.slice(1);
+        }
+
+        var qvars = str.split(/[&;]/);
+        var obj = {};
+
+        for (var i = 0; i < qvars.length; i++) {
+            var [name, value] = qvars[i].split("=", 2);
+
+            name = decodeURIComponent(name);
+            value = decodeURIComponent(value);
+
+            obj[name] = value;
+        }
+
+        return obj;
+    },
+
+    emitQueryString: function(obj) {
+        var tokens = [];
+
+        for (var name in obj) {
+            if (!obj.hasOwnProperty(name)) {
+                continue;
+            }
+
+            var value = obj[name];
+
+            name = decodeURIComponent(name);
+            value = decodeURIComponent(value);
+
+            tokens.push(name + "=" + value);
+        }
+
+        return tokens.join(";");
+    },
+
+    createElem: function(parent, tag, text) {
+        var elem = document.createElement(tag);
+
+        parent.appendChild(elem);
+
+        if (text) {
+            blinky.createText(elem, text);
+        }
+
+        return elem;
     },
 
     createText: function(parent, text) {
@@ -58,18 +114,8 @@ var blinky = {
         return node;
     },
 
-    createTextElem: function(parent, tag, text) {
-        var elem = blinky.createElem(parent, tag);
-
-        if (text) {
-            blinky.createText(elem, text);
-        }
-
-        return elem;
-    },
-
-    createDiv: function(parent, class_) {
-        var elem = blinky.createElem(parent, "div");
+    createDiv: function(parent, class_, text) {
+        var elem = blinky.createElem(parent, "div", text);
 
         if (class_) {
             elem.setAttribute("class", class_);
@@ -78,19 +124,13 @@ var blinky = {
         return elem;
     },
 
-    createTextDiv: function(parent, class_, text) {
-        var elem = blinky.createDiv(parent, class_);
+    createLink: function(parent, href, text) {
+        var elem = blinky.createElem(parent, "a", text);
 
-        if (text) {
-            blinky.createText(elem, text);
+        if (href) {
+            elem.setAttribute("href", href);
         }
 
-        return elem;
-    },
-
-    createLink: function(parent, href, text) {
-        var elem = blinky.createTextElem(parent, "a", text);
-        elem.setAttribute("href", href);
         return elem;
     },
 
@@ -123,6 +163,77 @@ var blinky = {
         return Math.floor(seconds) + "s";
     },
 
+    createHeader: function(parent, state) {
+        var elem = blinky.createDiv(parent, "header");
+
+        blinky.createElem(elem, "h1", state.data.title);
+        blinky.createCategorySelector(elem, state);
+
+        return elem;
+    },
+
+    createFooter: function(parent, state) {
+        var elem = blinky.createDiv(parent, "footer");
+        var time = new Date().toLocaleString();
+
+        var status = blinky.createElem(elem, "span", time + " (200 OK)"); // XXX a fib
+        status.setAttribute("id", "request-status");
+
+        blinky.createText(elem, " \u2022 ");
+
+        var link = blinky.createLink(elem, "pretty-data.html?url=/data.json", "Data");
+        link.setAttribute("target", "blinky");
+
+        return elem;
+    },
+
+    createCategorySelector: function(parent, state) {
+        var elem = blinky.createDiv(parent, "category-selector");
+
+        blinky.createCategorySelectorLink(elem, state, "All", "all");
+
+        var categories = state.data.categories;
+
+        for (var categoryId in categories) {
+            var category = categories[categoryId];
+            blinky.createCategorySelectorLink(elem, state, category.name, category.key);
+        }
+
+        var links = elem.$$("a");
+        var selection = state.query.category;
+
+        for (var i = 0; i < links.length; i++) {
+            var link = links[i];
+
+            if (link.getAttribute("data-category") === selection) {
+                link.classList.add("selected");
+            }
+        }
+
+        return elem;
+    },
+
+    createCategorySelectorLink: function(parent, state, name, key) {
+        var query = Object.assign({}, state.query); // XXX compat
+
+        query.category = key;
+
+        var href = "?" + blinky.emitQueryString(query);
+        var elem = blinky.createLink(parent, href, name);
+
+        elem.setAttribute("data-category", key);
+        elem.addEventListener("click", function(event) {
+            event.preventDefault();
+
+            state.query = query;
+            window.history.pushState(state.query, null, event.target.href);
+
+            blinky.fireStateChangeEvent();
+        });
+
+        return elem;
+    },
+
     createObjectLink: function(parent, obj) {
         var elem = blinky.createLink(parent, obj.html_url, obj.name);
         elem.setAttribute("target", "blinky");
@@ -140,7 +251,7 @@ var blinky = {
 
     createResultTestsLink: function(parent, result) {
         if (!result.tests_url) {
-            var elem = blinky.createTextElem(parent, "span", "Tests");
+            var elem = blinky.createElem(parent, "span", "Tests");
             elem.setAttribute("class", "disabled");
             return elem;
         }
@@ -151,108 +262,55 @@ var blinky = {
         return elem;
     },
 
-    createCategorySelector: function(parent, categories) {
-        var selector = blinky.createDiv(parent, "category-selector");
-        var link = blinky.createLink(selector, "#all", "All");
+    createPanel: function(parent, state) {
+        var elem = blinky.createDiv(parent, "group-container");
 
-        for (var categoryId in categories) {
-            var category = categories[categoryId];
-            var link = blinky.createLink(selector, "#" + category.key, category.name);
-        }
-    },
+        var groups = state.data.groups;
+        var categories = state.data.categories;
+        var jobs = state.data.jobs;
 
-    updateCategorySelection: function(event) {
-        event.preventDefault();
+        var selection = state.query.category;
 
-        var hash = window.location.hash;
+        for (var groupId in groups) {
+            var group = groups[groupId];
+            var category = categories[group.category_id];
 
-        if (!hash) {
-            hash = "#all";
-        }
-
-        var links = $$(".category-selector > a");
-
-        for (var i = 0; i < links.length; i++) {
-            var elem = links[i];
-
-            if (elem.getAttribute("href") == hash) {
-                elem.classList.add("selected");
-            } else {
-                elem.classList.remove("selected");
-            }
-        }
-
-        var selectedCategory = $(hash);
-        var categories = $$(".category");
-
-        for (var i = 0; i < categories.length; i++) {
-            var elem = categories[i];
-
-            if (hash === "#all") {
-                elem.className = "category";
+            if (selection !== "all" && selection !== category.key) {
                 continue;
             }
 
-            if (elem == selectedCategory) {
-                elem.classList.remove("invisible");
-            } else {
-                elem.classList.add("invisible");
-            }
-        }
-    },
+            var groupElem = blinky.createDiv(elem, "group");
 
-    renderPanel: function(data) {
-        var oldContent = $("#content");
-        var newContent = document.createElement("div");
-        newContent.setAttribute("id", "content");
+            blinky.createElem(groupElem, "h2", group.name);
 
-        var categories = data.categories;
+            var jobContainer = blinky.createDiv(groupElem, "job-container");
+            var jobIds = group.job_ids;
 
-        blinky.createCategorySelector(newContent, categories);
-
-        for (var categoryId in categories) {
-            var category = categories[categoryId];
-            var categoryElem = blinky.createDiv(newContent, "category");
-
-            categoryElem.setAttribute("id", category.key);
-
-            var groupIds = category.group_ids;
-
-            for (var i = 0; i < groupIds.length; i++) {
-                var group = data.groups[groupIds[i]];
-                var groupElem = blinky.createDiv(categoryElem, "group");
-
-                blinky.createTextElem(groupElem, "h2", group.name);
-
-                var container = blinky.createDiv(groupElem, "job-container");
-                var jobIds = group.job_ids;
-
-                for (var j = 0; j < jobIds.length; j++) {
-                    var job = data.jobs[jobIds[j]];
-                    blinky.createJob(container, data, job);
-                }
+            for (var j = 0; j < jobIds.length; j++) {
+                var job = jobs[jobIds[j]];
+                blinky.createJob(jobContainer, state, job);
             }
         }
 
-        oldContent.parentNode.replaceChild(newContent, oldContent);
+        return elem;
     },
 
-    createJob: function(parent, data, job) {
-        var component = data.components[job.component_id];
-        var environment = data.environments[job.environment_id];
+    createJob: function(parent, state, job) {
+        var component = state.data.components[job.component_id];
+        var environment = state.data.environments[job.environment_id];
         var currResult = job.current_result;
         var prevResult = job.previous_result;
 
         var elem = blinky.createLink(parent, job.html_url, null);
 
         elem.setAttribute("target", "blinky");
-        elem.classList.add("job-item");
+        elem.classList.add("job");
 
         var summary = blinky.createDiv(elem, "job-summary");
 
-        blinky.createTextDiv(summary, "summary-component", component.name);
-        blinky.createTextDiv(summary, "summary-job", job.name);
-        blinky.createTextDiv(summary, "summary-environment", environment.name);
+        blinky.createDiv(summary, "summary-component", component.name);
+        blinky.createDiv(summary, "summary-job", job.name);
+        blinky.createDiv(summary, "summary-environment", environment.name);
 
         if (!currResult) {
             elem.classList.add("no-data");
@@ -275,23 +333,23 @@ var blinky = {
             elem.classList.add("stale-data");
         }
 
-        var secondsNow = new Date().getTime() / 1000;
+        var secondsNow = new Date().getTime() / 1000; // XXX use a shared snapshot time?
         var secondsAgo = secondsNow - currResult.start_time;
 
-        blinky.createTextDiv(summary, "summary-start-time", blinky.formatDuration(secondsAgo));
-        blinky.createJobDetail(elem, data, job);
+        blinky.createDiv(summary, "summary-start-time", blinky.formatDuration(secondsAgo));
+        blinky.createJobDetail(elem, state, job);
 
         return elem;
     },
 
-    createJobDetail: function(parent, data, job) {
-        var component = data.components[job.component_id];
-        var environment = data.environments[job.environment_id];
-        var agent = data.agents[job.agent_id];
+    createJobDetail: function(parent, state, job) {
+        var elem = blinky.createDiv(parent, "job-detail");
+
+        var component = state.data.components[job.component_id];
+        var environment = state.data.environments[job.environment_id];
+        var agent = state.data.agents[job.agent_id];
         var currResult = job.current_result;
         var prevResult = job.previous_result;
-
-        var elem = blinky.createDiv(parent, "job-detail");
 
         var table = blinky.createElem(elem, "table");
         var tbody = blinky.createElem(table, "tbody");
@@ -309,7 +367,7 @@ var blinky = {
 
         if (currResult) {
             var duration = blinky.formatDuration(currResult.duration);
-            var secondsNow = new Date().getTime() / 1000;
+            var secondsNow = new Date().getTime() / 1000; // XXX shared timestamp
             var secondsAgo = secondsNow - currResult.start_time;
             var timeAgo = blinky.formatDuration(secondsAgo) + " ago";
 
@@ -337,20 +395,30 @@ var blinky = {
         return elem;
     },
 
-    createJobDetailField: function(tbody, name, text) {
-        var tr = blinky.createElem(tbody, "tr");
-        var th = blinky.createTextElem(tr, "th", name);
-        var td = blinky.createTextElem(tr, "td", text);
+    createJobDetailField: function(parent, name, text) {
+        var tr = blinky.createElem(parent, "tr");
+        var th = blinky.createElem(tr, "th", name);
+        var td = blinky.createElem(tr, "td", text);
 
         return td;
     },
 
+    // XXX -> createTable
     renderTable: function(data) {
         var oldContent = $("#content");
         var newContent = document.createElement("tbody");
+
         newContent.setAttribute("id", "content");
 
         var nowSeconds = new Date().getTime() / 1000;
+
+        var categories = data.categories;
+        var groups = data.groups;
+
+        blinky.createCategorySelector(newContent, categories);
+
+        var table = blinky.createElem(newContent, "table");
+        var tbody = blinky.createElem(table, "tbody");
 
         for (var jobId in data.jobs) {
             var job = data.jobs[jobId];
@@ -420,72 +488,86 @@ var blinky = {
         oldContent.parentNode.replaceChild(newContent, oldContent);
     },
 
-    renderTitle: function(data) {
-        var elem = $("h1");
+    //fetchInterval: 60 * 1000,
+    fetchInterval: 2 * 1000,
 
-        if (!elem) {
-            return;
-        }
-
-        elem.textContent = data.title;
+    state: {
+        query: {
+            category: "all"
+        },
+        data: null,
+        dataHash: null,
+        dataTimestamp: null // XXX
     },
 
-    renderUpdateInfo: function(request) {
-        var elem = $("#update-info");
+    fetchData: function() {
+        console.log("Fetching data");
 
-        if (!elem) {
-            return;
-        }
-
-        var time = new Date().toLocaleString();
-
-        elem.textContent = time + " (HTTP " + request.status + ")";
-    },
-
-    etag: null,
-    updateInterval: 60 * 1000,
-
-    update: function(handler) {
-        var request = new XMLHttpRequest();
-
-        request.onreadystatechange = function() {
-            if (request.readyState === 4) {
-                blinky.renderUpdateInfo(request);
-
-                if (request.status !== 200) {
-                    return;
-                }
-
-                blinky.etag = request.getResponseHeader("ETag");
-
-                if (!request.responseText) {
-                    return;
-                }
-
-                var data = JSON.parse(request.responseText);
-
-                blinky.renderTitle(data);
-
-                handler(data);
-
-                window.dispatchEvent(new Event("update"));
+        var request = blinky.openGetRequest("/data.json", function(request) {
+            if (request.status === 200) {
+                blinky.state.dataHash = request.getResponseHeader("ETag");
+                blinky.state.data = JSON.parse(request.responseText);
+                blinky.fireStateChangeEvent();
             }
-        };
 
-        request.open("GET", "/data.json");
+            blinky.updateRequestStatus(request);
+        });
 
-        if (blinky.etag) {
-            request.setRequestHeader("If-None-Match", blinky.etag);
+        if (blinky.state.dataHash) {
+            request.setRequestHeader("If-None-Match", blinky.state.dataHash);
         }
 
         request.send(null);
     },
 
-    updatePanel: function(event) {
-        blinky.update(blinky.renderPanel);
+    renderPage: function(state) {
+        console.log("Rendering page");
+
+        var oldContent = $("#content");
+        var newContent = document.createElement("div");
+
+        newContent.setAttribute("id", "content");
+
+        document.title = state.data.title;
+
+        blinky.createHeader(newContent, state);
+        blinky.createPanel(newContent, state);
+        blinky.createFooter(newContent, state);
+
+        oldContent.parentNode.replaceChild(newContent, oldContent);
     },
 
-    updateTable: function(event) {
-        blinky.update(blinky.renderTable);
+    updateRequestStatus: function(request) {
+        var elem = $("#request-status");
+        var time = new Date().toLocaleString();
+
+        if (elem) {
+            elem.textContent = time + " (" + request.status + " " + request.statusText + ")";
+        }
+    },
+
+    fireStateChangeEvent: function() {
+        window.dispatchEvent(new Event("statechange"));
+    },
+
+    init: function() {
+        window.addEventListener("statechange", function(event) {
+            blinky.renderPage(blinky.state);
+        });
+
+        window.addEventListener("load", function(event) {
+            if (window.location.search) {
+                blinky.state.query = blinky.parseQueryString(window.location.search);
+            }
+
+            blinky.fetchData();
+        });
+
+        window.addEventListener("popstate", function(event) {
+            blinky.state.query = event.state;
+            blinky.fireStateChangeEvent();
+        });
+
+        window.setInterval(blinky.fetchData, blinky.fetchInterval);
     }
 };

@@ -22,7 +22,7 @@ html, body {
 body {
     font: 10pt/12.5pt Roboto, sans-serif;
     font-weight: 400;
-    padding: 2em;
+    padding: 2.5em 2em;
 }
 
 @media screen and (max-width: 600px) {
@@ -85,25 +85,26 @@ div.category-selector > a {
     margin: 0 1em 0 0;
     padding: 0 0 0.4em 0;
     color: black;
-    border-bottom: 0.2em solid white;
+    border-bottom: 0.2em solid transparent;
 }
 
 div.category-selector > a.selected, div.category-selector > a:hover {
     border-bottom: 0.2em solid black;
+    cursor: pointer;
 }
 
-div.category {
+div.group-container {
     display: flex;
     flex-flow: row wrap;
     margin: 0;
 }
 
-div.category.invisible {
-    display: none;
+div.group {
+    margin: 0 3em 1em 0;
 }
 
-div.group {
-    margin: 0 2em 1em 0;
+div.group.invisible {
+    display: none;
 }
 
 div.job-container {
@@ -112,7 +113,7 @@ div.job-container {
     margin: 0;
 }
 
-a.job-item {
+a.job {
     margin: 0 0.4em 0.4em 0;
 }
 
@@ -129,21 +130,21 @@ div.job-summary {
     text-align: center;
 }
 
-a.job-item.passed div.job-summary {
+a.job.passed div.job-summary {
     background-color: rgb(63, 191, 127);
 }
 
-a.job-item.failed div.job-summary {
+a.job.failed div.job-summary {
     background-color: rgb(255, 63, 0);
 }
 
-a.job-item.no-data div.job-summary, a.job-item.stale-data div.job-summary {
+a.job.no-data div.job-summary, a.job.stale-data div.job-summary {
     border: 0.2em solid rgb(191, 191, 191);
     background-color: white;
     color: rgb(159, 159, 159);
 }
 
-a.job-item.blinky div.job-summary {
+a.job.blinky div.job-summary {
     animation: blinky 3s steps(30, start) infinite;
 }
 
@@ -159,7 +160,11 @@ div.summary-job, div.summary-environment, div.summary-start-time {
     line-height: 1.2em;
 }
 
-a.job-item:hover div.job-detail {
+div.job-detail {
+    display: none;
+}
+
+a.job:hover > div.job-detail {
     display: block;
     position: absolute;
     color: black;
@@ -167,10 +172,6 @@ a.job-item:hover div.job-detail {
     padding: 1em;
     margin-top: -0.2em;
     box-shadow: 0 0.06em 0.2em rgb(127, 127, 127);
-}
-
-div.job-detail {
-    display: none;
 }
 
 div.job-detail th, div.job-detail td {
