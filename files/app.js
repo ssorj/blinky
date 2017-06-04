@@ -166,8 +166,25 @@ var blinky = {
     createHeader: function(parent, state) {
         var elem = blinky.createDiv(parent, "header");
 
+        blinky.createViewSelector(elem, state);
         blinky.createElem(elem, "h1", state.data.title);
         blinky.createCategorySelector(elem, state);
+
+        return elem;
+    },
+
+    createBody: function(parent, state) {
+        var elem = blinky.createDiv(parent, "body");
+
+        var view = state.query.view;
+
+        if (view === "panel") {
+            blinky.createPanel(elem, state);
+        } else if (view === "table") {
+            blinky.createTable(elem, state);
+        } else {
+            // XXX Error output
+        }
 
         return elem;
     },
@@ -187,6 +204,28 @@ var blinky = {
         return elem;
     },
 
+    createViewSelector: function(parent, state) {
+        var elem = blinky.createDiv(parent, "view-selector");
+
+        blinky.createViewSelectorLink(elem, state, "Panel", "panel");
+        blinky.createViewSelectorLink(elem, state, "Table", "table");
+
+        return elem;
+    },
+
+    createViewSelectorLink: function(parent, state, text, view) {
+        var query = Object.assign({}, state.query); // XXX compat
+        query.view = view;
+
+        var elem = blinky.createStateLink(parent, state, text, query);
+
+        if (view === state.query.view) {
+            elem.classList.add("selected");
+        }
+
+        return elem;
+    },
+
     createCategorySelector: function(parent, state) {
         var elem = blinky.createDiv(parent, "category-selector");
 
@@ -199,29 +238,27 @@ var blinky = {
             blinky.createCategorySelectorLink(elem, state, category.name, category.key);
         }
 
-        var links = elem.$$("a");
-        var selection = state.query.category;
+        return elem;
+    },
 
-        for (var i = 0; i < links.length; i++) {
-            var link = links[i];
+    createCategorySelectorLink: function(parent, state, text, category) {
+        var query = Object.assign({}, state.query); // XXX compat
+        query.category = category;
 
-            if (link.getAttribute("data-category") === selection) {
-                link.classList.add("selected");
-            }
+        var elem = blinky.createStateLink(parent, state, text, query);
+
+        if (category === state.query.category) {
+            elem.classList.add("selected");
         }
 
         return elem;
     },
 
-    createCategorySelectorLink: function(parent, state, name, key) {
-        var query = Object.assign({}, state.query); // XXX compat
-
-        query.category = key;
-
+    // XXX name kinda sucks
+    createStateLink: function(parent, state, text, query) {
         var href = "?" + blinky.emitQueryString(query);
-        var elem = blinky.createLink(parent, href, name);
+        var elem = blinky.createLink(parent, href, text);
 
-        elem.setAttribute("data-category", key);
         elem.addEventListener("click", function(event) {
             event.preventDefault();
 
@@ -263,7 +300,7 @@ var blinky = {
     },
 
     createPanel: function(parent, state) {
-        var elem = blinky.createDiv(parent, "group-container");
+        var elem = blinky.createDiv(parent, "panel");
 
         var groups = state.data.groups;
         var categories = state.data.categories;
@@ -403,37 +440,62 @@ var blinky = {
         return td;
     },
 
-    // XXX -> createTable
-    renderTable: function(data) {
-        var oldContent = $("#content");
-        var newContent = document.createElement("tbody");
+    createTable: function(parent, state) {
+        var elem = blinky.createElem(parent, "table");
 
-        newContent.setAttribute("id", "content");
+        elem.classList.add("jobs");
+        elem.setAttribute("data-sortable", "data-sortable");
 
-        var nowSeconds = new Date().getTime() / 1000;
+        var thead = blinky.createElem(elem, "thead");
+        var tr = blinky.createElem(thead, "tr");
 
-        var categories = data.categories;
-        var groups = data.groups;
+        blinky.createElem(tr, "th", "Component");
+        blinky.createElem(tr, "th", "Environment");
+        blinky.createElem(tr, "th", "Job");
+        blinky.createElem(tr, "th", "Agent");
+        blinky.createElem(tr, "th", "Number");
+        blinky.createElem(tr, "th", "Time");
+        blinky.createElem(tr, "th", "Duration");
+        blinky.createElem(tr, "th", "Curr status");
+        blinky.createElem(tr, "th", "Prev status");
+        blinky.createElem(tr, "th", "Links");
 
-        blinky.createCategorySelector(newContent, categories);
+        var tbody = blinky.createElem(elem, "tbody");
 
-        var table = blinky.createElem(newContent, "table");
-        var tbody = blinky.createElem(table, "tbody");
+        var nowSeconds = new Date().getTime() / 1000; // XXX share me
 
-        for (var jobId in data.jobs) {
-            var job = data.jobs[jobId];
-            var component = data.components[job.component_id];
-            var environment = data.environments[job.environment_id];
-            var agent = data.agents[job.agent_id];
+        var jobs = state.data.jobs;
+        var groups = state.data.groups;
+        var categories = state.data.categories;
+        var components = state.data.components;
+        var environments = state.data.environments;
+        var agents = state.data.agents;
+
+        var selection = state.query.category;
+
+        for (var jobId in jobs) {
+            var job = jobs[jobId];
+
+            var group = groups[job.group_id];
+            var category = categories[group.category_id];
+
+            if (selection !== "all" && selection !== category.key) {
+                continue;
+            }
+
+            var component = components[job.component_id];
+            var environment = environments[job.environment_id];
+            var agent = agents[job.agent_id];
+
             var currResult = job.current_result;
             var prevResult = job.previous_result;
 
-            var tr = blinky.createElem(newContent, "tr");
+            var tr = blinky.createElem(tbody, "tr");
             var td = null;
             var link = null;
 
-            blinky.createElem(tr, "td").textContent = component.name;
-            blinky.createElem(tr, "td").textContent = environment.name;
+            blinky.createElem(tr, "td", component.name);
+            blinky.createElem(tr, "td", environment.name);
 
             td = blinky.createElem(tr, "td");
             blinky.createObjectLink(td, job);
@@ -485,7 +547,7 @@ var blinky = {
             }
         }
 
-        oldContent.parentNode.replaceChild(newContent, oldContent);
+        return elem;
     },
 
     //fetchInterval: 60 * 1000,
@@ -493,7 +555,8 @@ var blinky = {
 
     state: {
         query: {
-            category: "all"
+            category: "all",
+            view: "panel"
         },
         data: null,
         dataHash: null,
@@ -531,7 +594,7 @@ var blinky = {
         document.title = state.data.title;
 
         blinky.createHeader(newContent, state);
-        blinky.createPanel(newContent, state);
+        blinky.createBody(newContent, state);
         blinky.createFooter(newContent, state);
 
         oldContent.parentNode.replaceChild(newContent, oldContent);
@@ -553,6 +616,9 @@ var blinky = {
     init: function() {
         window.addEventListener("statechange", function(event) {
             blinky.renderPage(blinky.state);
+
+            // XXX
+            Sortable.init();
         });
 
         window.addEventListener("load", function(event) {
