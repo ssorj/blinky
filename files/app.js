@@ -617,8 +617,9 @@ var blinky = {
         window.addEventListener("statechange", function(event) {
             blinky.renderPage(blinky.state);
 
-            // XXX
-            Sortable.init();
+            if (blinky.state.query.view === "table") {
+                Sortable.init();
+            }
         });
 
         window.addEventListener("load", function(event) {
@@ -627,13 +628,17 @@ var blinky = {
             }
 
             blinky.fetchData();
+
+            window.setInterval(function() {
+                if (blinky.state.query.view !== "table") {
+                    blinky.fetchData();
+                }
+            }, blinky.fetchInterval);
         });
 
         window.addEventListener("popstate", function(event) {
             blinky.state.query = event.state;
             blinky.fireStateChangeEvent();
         });
-
-        window.setInterval(blinky.fetchData, blinky.fetchInterval);
     }
 };
