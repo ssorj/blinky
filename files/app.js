@@ -550,9 +550,6 @@ var blinky = {
         return elem;
     },
 
-    //fetchInterval: 60 * 1000,
-    fetchInterval: 2 * 1000,
-
     state: {
         query: {
             category: "all",
@@ -562,6 +559,8 @@ var blinky = {
         dataHash: null,
         dataTimestamp: null // XXX
     },
+
+    fetchInterval: 60 * 1000,
 
     fetchData: function() {
         console.log("Fetching data");

@@ -30,6 +30,7 @@ _log = _logging.getLogger("blinky.travis")
 _status_mapping = {
     "passed": PASSED,
     "failed": FAILED,
+    "errored": FAILED,
 }
 
 class TravisAgent(HttpAgent):
