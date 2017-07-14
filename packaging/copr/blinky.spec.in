@@ -1,0 +1,43 @@
+%global _user ssorj
+%global _commit @commit@
+%global _short_commit %(c=%{_commit}; echo ${c:0:8})
+%global _timestamp %(date +"%Y%m%d")
+
+Name:           blinky
+Version:        0
+Release:        0.1.%{_timestamp}.%{_short_commit}%{?dist}
+Summary:        Aggregate and display the status of CI jobs
+License:        ASL 2.0
+URL:            https://github.com/%{_user}/%{name}
+Source:         %{name}-SNAPSHOT.tar.gz
+BuildArch:      noarch
+Requires:       python3
+Requires:       python3-pyserial
+Requires:       python3-requests
+Requires:       python3-tornado
+BuildRequires:  make
+BuildRequires:  python
+BuildRequires:  python3
+
+%description
+Blinky collects results from multiple CI services and displays them in
+a consolidated dashboard.
+
+%prep
+%setup -qn %{name}-%{_commit}
+
+%build
+make build
+
+%install
+make install DESTDIR=%{buildroot} PREFIX=%{_prefix}
+
+%files
+%doc README.md LICENSE.txt
+/usr/share/blinky
+/usr/bin/blinky
+/usr/bin/blinky-tape
+/usr/lib/systemd/system/blinky.service
+/usr/lib/systemd/system/blinky-tape.service
+
+%changelog
