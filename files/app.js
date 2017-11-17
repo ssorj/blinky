@@ -293,7 +293,7 @@ var blinky = {
             return elem;
         }
 
-        var elem = blinky.createLink(parent, result.test_url, "Tests");
+        var elem = blinky.createLink(parent, result.tests_url, "Tests");
         elem.setAttribute("target", "blinky");
 
         return elem;
