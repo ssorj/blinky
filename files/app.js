@@ -409,7 +409,8 @@ var blinky = {
             var timeAgo = blinky.formatDuration(secondsAgo) + " ago";
 
             td = blinky.createJobDetailField(tbody, "Number", null);
-            blinky.createObjectLink(td, currResult, currResult.number);
+            link = blinky.createObjectLink(td, currResult);
+            link.textContent = currResult.number;
 
             blinky.createJobDetailField(tbody, "Time", timeAgo);
             blinky.createJobDetailField(tbody, "Duration", duration);
