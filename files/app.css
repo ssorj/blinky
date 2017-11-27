@@ -117,11 +117,11 @@ div.job-container {
     margin: 0;
 }
 
-a.job {
+div.job {
     margin: 0 0.4em 0.4em 0;
 }
 
-div.job-summary {
+a.job-summary {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -134,21 +134,21 @@ div.job-summary {
     text-align: center;
 }
 
-a.job.passed div.job-summary {
+div.job.passed a.job-summary {
     background-color: rgb(63, 191, 127);
 }
 
-a.job.failed div.job-summary {
+div.job.failed a.job-summary {
     background-color: rgb(255, 63, 0);
 }
 
-a.job.no-data div.job-summary, a.job.stale-data div.job-summary {
+div.job.no-data a.job-summary, div.job.stale-data a.job-summary {
     border: 0.2em solid rgb(191, 191, 191);
     background-color: white;
     color: rgb(159, 159, 159);
 }
 
-a.job.blinky div.job-summary {
+div.job.blinky a.job-summary {
     animation: blinky 3s steps(30, start) infinite;
 }
 
@@ -168,7 +168,7 @@ div.job-detail {
     display: none;
 }
 
-a.job:hover > div.job-detail {
+div.job:hover > div.job-detail {
     display: block;
     position: absolute;
     color: black;

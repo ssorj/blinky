@@ -18,6 +18,7 @@
 #
 
 import collections as _collections
+import concurrent.futures as _futures
 import datetime as _datetime
 import json as _json
 import hashlib as _hashlib
@@ -39,6 +40,8 @@ class Model:
 
         self.update_thread = _ModelUpdateThread(self)
         self.update_time = None
+
+        self.executor = _futures.ThreadPoolExecutor()
 
         self.categories = list()
         self.groups = list()
@@ -96,13 +99,11 @@ class Model:
     def update(self):
         _log.info("Updating {}".format(self))
 
-        for agent in self.agents:
-            try:
-                agent.update()
-            except KeyboardInterrupt:
-                raise
-            except:
-                _log.exception("Failure updating {}".format(agent))
+        futures = [self.executor.submit(x.update) for x in self.agents]
+
+        for future in _futures.as_completed(futures):
+            if future.exception() is not None:
+                _log.error("Failure updating: {}".format(future.exeception()))
 
         self.update_time = _datetime.datetime.utcnow()
 
@@ -139,7 +140,7 @@ class _ModelUpdateThread(_threading.Thread):
         self.scheduler.run()
 
     def update_model(self):
-        self.scheduler.enter(120, 1, self.update_model)
+        self.scheduler.enter(300, 1, self.update_model)
 
         try:
             self.model.update()
@@ -374,7 +375,7 @@ class HttpJob(Job):
             url = self.data_url
 
         try:
-            response = session.get(url, headers=headers, timeout=10)
+            response = session.get(url, headers=headers, timeout=30)
         except _requests.exceptions.RequestException as e:
             self.log_request_error(str(e), url, headers, None)
             return

@@ -338,12 +338,11 @@ var blinky = {
         var currResult = job.current_result;
         var prevResult = job.previous_result;
 
-        var elem = blinky.createLink(parent, job.html_url, null);
+        var elem = blinky.createDiv(parent, "job");
 
-        elem.setAttribute("target", "blinky");
-        elem.classList.add("job");
-
-        var summary = blinky.createDiv(elem, "job-summary");
+        var summary = blinky.createLink(elem, job.html_url);
+        summary.setAttribute("target", "blinky");
+        summary.setAttribute("class", "job-summary");
 
         blinky.createDiv(summary, "summary-component", component.name);
         blinky.createDiv(summary, "summary-job", job.name);

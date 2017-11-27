@@ -42,7 +42,7 @@ install: build
 test: PREFIX := ${PWD}/install
 test: clean install
 	scripts/test-blinky
-	scripts/test-blinky-tape
+#	scripts/test-blinky-tape
 
 .PHONY: devel
 devel: PREFIX := ${PWD}/install
