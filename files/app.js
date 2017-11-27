@@ -353,7 +353,7 @@ var blinky = {
             return elem;
         }
 
-        elem.setAttribute("href", currResult.html_url);
+        summary.setAttribute("href", currResult.html_url);
 
         if (currResult.status === "PASSED") {
             elem.classList.add("passed");

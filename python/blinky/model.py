@@ -365,7 +365,7 @@ class HttpAgent(Agent):
 
         elapsed = _time.time() - start
 
-        _log.info("{} updated {} jobs in {:.2f} s".format(self, len(self.jobs), elapsed))
+        _log.info("{} updated {} jobs in {:.2f}s".format(self, len(self.jobs), elapsed))
 
 class HttpJob(Job):
     def fetch_data(self, session, headers=None):
@@ -375,7 +375,7 @@ class HttpJob(Job):
             url = self.data_url
 
         try:
-            response = session.get(url, headers=headers, timeout=30)
+            response = session.get(url, headers=headers, timeout=10)
         except _requests.exceptions.RequestException as e:
             self.log_request_error(str(e), url, headers, None)
             return

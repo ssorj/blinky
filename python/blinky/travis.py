@@ -48,7 +48,7 @@ class TravisJob(HttpJob):
         self.repo = repo
         self.branch = branch
 
-        self.html_url = "{}/repos/{}/branches/{}" \
+        self.html_url = "{}/{}/branches" \
             .format(self.agent.html_url, self.repo, self.branch)
         self.data_url = "{}/repos/{}/branches/{}" \
             .format(self.agent.data_url, self.repo, self.branch)
