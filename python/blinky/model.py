@@ -103,7 +103,7 @@ class Model:
 
         for future in _futures.as_completed(futures):
             if future.exception() is not None:
-                _log.error("Failure updating: {}".format(future.exeception()))
+                _log.error("Failure updating: {}".format(future.exception()))
 
         self.update_time = _datetime.datetime.utcnow()
 
@@ -376,6 +376,8 @@ class HttpJob(Job):
 
         try:
             response = session.get(url, headers=headers, timeout=10)
+        except _requests.exceptions.ConnectionError:
+            raise
         except _requests.exceptions.RequestException as e:
             self.log_request_error(str(e), url, headers, None)
             return
@@ -389,16 +391,16 @@ class HttpJob(Job):
 
     def log_request_error(self, message, url, headers, response):
         _log.warn("HTTP request error: {}".format(message))
-        _log.warn("Request URL:      {}".format(url))
+        _log.warn("Request URL:        {}".format(url))
 
         if headers is not None:
-            _log.warn("Request headers:  {}".format(headers))
+            _log.warn("Request headers:    {}".format(headers))
 
         if response is not None:
-            _log.warn("Response code:    {}".format(response.status_code))
-            _log.warn("Response headers: {}".format(response.headers))
+            _log.warn("Response code:      {}".format(response.status_code))
+            _log.warn("Response headers:   {}".format(response.headers))
 
             if response.status_code == 500:
-                _log.warn("Response text:    {}".format(response.text))
+                _log.warn("Response text:      {}".format(response.text))
             else:
-                _log.debug("Response text:    {}".format(response.text))
+                _log.debug("Response text:      {}".format(response.text))
