@@ -369,12 +369,14 @@ class HttpAgent(Agent):
 
 class HttpJob(Job):
     def fetch_data(self, session, headers=None):
-        url = self.fetch_url
+        url = self.data_url
 
-        if url is None:
-            url = self.data_url
+        if self.fetch_url is not None:
+            url = self.fetch_url
 
         try:
+            _log.debug("Fetching data from {}".format(url))
+
             response = session.get(url, headers=headers, timeout=10)
         except _requests.exceptions.ConnectionError:
             raise

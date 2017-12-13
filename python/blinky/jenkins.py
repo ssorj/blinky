@@ -45,8 +45,8 @@ class JenkinsJob(HttpJob):
         self.slug = slug
 
         self.html_url = "{}/job/{}".format(self.agent.html_url, self.slug)
-        self.data_url = "{}/api/json".format(self.html_url)
-        self.fetch_url = "{}/lastBuild/api/json".format(self.html_url)
+        self.data_url = "{}/api/json?{}".format(self.html_url, _rest_api_qs)
+        self.fetch_url = "{}/lastBuild/api/json?{}".format(self.html_url, _rest_api_qs)
 
     def convert_result(self, data):
         number = data["number"]
@@ -55,7 +55,7 @@ class JenkinsJob(HttpJob):
         status = _status_mapping.get(status, status)
 
         html_url = "{}/{}".format(self.html_url, number)
-        data_url = "{}/api/json".format(html_url)
+        data_url = "{}/api/json?{}".format(html_url, _rest_api_qs)
         tests_url = None
 
         for action in data["actions"]:
@@ -73,3 +73,6 @@ class JenkinsJob(HttpJob):
         result.tests_url = tests_url
 
         return result
+
+# Fetch only as much data as we need
+_rest_api_qs = "tree=number,result,actions,timestamp,duration"
