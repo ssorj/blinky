@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="app.css" type="text/css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/styles/default.min.css"/>
     <link rel="icon" href="/images/icon.png" type="image/png" sizes="32x32"/>
+    <script src="gesso.js"></script>
     <script src="app.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/highlight.min.js"></script>
     <script>
@@ -23,7 +24,7 @@
           link.setAttribute("href", url);
           link.textContent = url;
 
-          blinky.sendGetRequest(proxy, function(request) {
+          gesso.sendRequest("GET", proxy, function(request) {
               if (request.status !== 200) {
                   $("#content").textContent = "[Error! My request for data failed]";
                   return;
