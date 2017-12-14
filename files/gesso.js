@@ -36,21 +36,11 @@ var gesso = {
     openRequest: function (method, url, handler) {
         var request = new XMLHttpRequest();
 
-        request.onreadystatechange = function () {
-            if (request.readyState === 4) {
-                handler(request);
-            }
-        };
-
         request.open(method, url);
 
-        return request;
-    },
-
-    sendRequest: function (method, url, handler) {
-        var request = gesso.openRequest(method, url, handler);
-
-        request.send(null);
+        if (handler) {
+            request.addEventListener("load", handler);
+        }
 
         return request;
     },
@@ -60,21 +50,33 @@ var gesso = {
         maxInterval: 60 * 1000,
         currentInterval: null,
         currentTimeoutId: null,
+        failedAttempts: 0,
         etags: {}
     },
 
-    fetchData: function (path, handler) {
+    fetchData: function (path, dataHandler) {
         console.log("Fetching data from", path);
 
         var attrs = gesso.fetchDataAttributes;
 
-        var request = gesso.openRequest("GET", path, function (request) {
-            if (request.status === 200) {
-                attrs.etags[path] = request.getResponseHeader("ETag");
+        function loadHandler(event) {
+            if (event.target.status === 200) {
+                attrs.etags[path] = event.target.getResponseHeader("ETag");
+                attrs.failedAttempts = 0;
 
-                handler(JSON.parse(request.responseText));
+                dataHandler(JSON.parse(event.target.responseText));
             }
-        });
+        }
+
+        function errorHandler(event) {
+            console.log("Fetch failed");
+
+            attrs.failedAttempts++;
+        }
+
+        var request = gesso.openRequest("GET", path, loadHandler);
+
+        request.addEventListener("error", errorHandler);
 
         var etag = attrs.etags[path];
 
@@ -82,33 +84,33 @@ var gesso = {
             request.setRequestHeader("If-None-Match", etag);
         }
 
-        request.send(null);
+        request.send();
     },
 
-    fetchDataPeriodically: function (path, handler) {
+    fetchDataPeriodically: function (path, dataHandler) {
         var attrs = gesso.fetchDataAttributes;
 
         window.clearTimeout(attrs.currentTimeoutId);
         attrs.currentInterval = attrs.minInterval;
 
-        gesso.doFetchDataPeriodically(path, handler);
+        gesso.doFetchDataPeriodically(path, dataHandler);
     },
 
-    doFetchDataPeriodically: function (path, handler) {
+    doFetchDataPeriodically: function (path, dataHandler) {
         var attrs = gesso.fetchDataAttributes;
 
         if (attrs.currentInterval >= attrs.maxInterval) {
-            window.setInterval(gesso.fetchData, attrs.maxInterval, path, handler);
+            window.setInterval(gesso.fetchData, attrs.maxInterval, path, dataHandler);
             return;
         }
 
         attrs.currentTimeoutId = window.setTimeout(gesso.doFetchDataPeriodically,
                                                    attrs.currentInterval,
-                                                   path, handler);
+                                                   path, dataHandler);
 
         attrs.currentInterval = Math.min(attrs.currentInterval * 2, attrs.maxInterval);
 
-        gesso.fetchData(path, handler);
+        gesso.fetchData(path, dataHandler);
     },
 
     parseQueryString: function (str) {

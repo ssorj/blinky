@@ -67,7 +67,7 @@ class Model:
         time = self.update_time.timetuple()
         time = _time.mktime(time) + 1e-6 * self.update_time.microsecond
 
-        # data["update_time"] = time # XXX
+        data["update_time"] = time
 
         categories_data = data["categories"] = dict()
         groups_data = data["groups"] = dict()

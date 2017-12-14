@@ -18,20 +18,15 @@
       var url = decodeURIComponent(qs.substring(5));
       var proxy = "proxy?url=" + encodeURIComponent(url);
 
-      window.addEventListener("load", function(event) {
+      window.addEventListener("load", function (event) {
           var link = $("#link");
 
           link.setAttribute("href", url);
           link.textContent = url;
 
-          gesso.sendRequest("GET", proxy, function(request) {
-              if (request.status !== 200) {
-                  $("#content").textContent = "[Error! My request for data failed]";
-                  return;
-              }
-
-              var text = request.responseText;
-              var contentType = request.getResponseHeader("Content-Type");
+          function loadHandler(event) {
+              var text = event.target.responseText;
+              var contentType = event.target.getResponseHeader("Content-Type");
 
               if (contentType.indexOf("application/json") === 0) {
                   var json = JSON.parse(text);
@@ -46,7 +41,16 @@
               } catch (e) {
                   $("#content").textContent = "[Error! The data isn't what I expected]";
               }
-          });
+          }
+
+          function errorHandler(event) {
+              $("#content").textContent = "[Error! My request for data failed]";
+          }
+
+          var request = gesso.openRequest("GET", proxy, loadHandler);
+
+          request.addEventListener("error", errorHandler);
+          request.send();
       });
     ]]>
     </script>

@@ -79,10 +79,12 @@ var blinky = {
 
     createFooter: function (parent, state) {
         var elem = gesso.createDiv(parent, "footer");
-        var time = new Date().toLocaleString();
 
-        var status = gesso.createElement(elem, "span", time + " (200 OK)"); // XXX a fib
-        status.setAttribute("id", "request-status");
+        var offset = new Date().getTimezoneOffset() * 60;
+        var time = new Date((state.data.update_time - offset) * 1000);
+
+        var status = gesso.createElement(elem, "span", time.toLocaleString());
+        status.setAttribute("id", "timestamp");
 
         gesso.createText(elem, " \u2022 ");
 
@@ -443,9 +445,7 @@ var blinky = {
             category: "all",
             view: "panel"
         },
-        data: null,
-        dataHash: null,
-        dataTimestamp: null // XXX
+        data: null
     },
 
     renderPage: function (state) {
@@ -465,12 +465,16 @@ var blinky = {
         oldContent.parentNode.replaceChild(newContent, oldContent);
     },
 
-    updateRequestStatus: function (request) {
-        var elem = $("#request-status");
+    updateTimestamp: function (request) {
+        var elem = $("#timestamp");
         var time = new Date().toLocaleString();
+    },
 
-        if (elem) {
-            elem.textContent = time + " (" + request.status + " " + request.statusText + ")";
+    checkFreshness: function () {
+        console.log("Checking freshness");
+
+        if (gesso.fetchDataAttributes.failedAttempts >= 1) {
+            window.alert("Trouble! I can't reach the server.");
         }
     },
 
