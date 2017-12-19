@@ -47,6 +47,7 @@ test: clean install
 .PHONY: devel
 devel: PREFIX := ${PWD}/install
 devel: clean install
+	blinky
 
 .PHONY: update-%
 update-%:

@@ -63,7 +63,6 @@ var blinky = {
 
     createBody: function (parent, state) {
         var elem = gesso.createDiv(parent, "body");
-
         var view = state.query.view;
 
         if (view === "panel") {
@@ -84,6 +83,7 @@ var blinky = {
         var time = new Date((state.data.update_time - offset) * 1000);
 
         var status = gesso.createElement(elem, "span", time.toLocaleString());
+
         status.setAttribute("id", "timestamp");
 
         gesso.createText(elem, " \u2022 ");
@@ -104,10 +104,11 @@ var blinky = {
     },
 
     createViewSelectorLink: function (parent, state, text, view) {
-        var query = Object.assign({}, state.query); // XXX compat
+        var query = Object.assign({}, state.query);
+
         query.view = view;
 
-        var elem = blinky.createStateLink(parent, state, text, query);
+        var elem = blinky.createStateChangeLink(parent, state, text, query);
 
         if (view === state.query.view) {
             elem.classList.add("selected");
@@ -132,10 +133,11 @@ var blinky = {
     },
 
     createCategorySelectorLink: function (parent, state, text, category) {
-        var query = Object.assign({}, state.query); // XXX compat
+        var query = Object.assign({}, state.query);
+
         query.category = category;
 
-        var elem = blinky.createStateLink(parent, state, text, query);
+        var elem = blinky.createStateChangeLink(parent, state, text, query);
 
         if (category === state.query.category) {
             elem.classList.add("selected");
@@ -144,8 +146,7 @@ var blinky = {
         return elem;
     },
 
-    // XXX name kinda sucks
-    createStateLink: function (parent, state, text, query) {
+    createStateChangeLink: function (parent, state, text, query) {
         var href = "?" + gesso.emitQueryString(query);
         var elem = gesso.createLink(parent, href, text);
 
@@ -163,7 +164,9 @@ var blinky = {
 
     createObjectLink: function (parent, obj) {
         var elem = gesso.createLink(parent, obj.html_url, obj.name);
+
         elem.setAttribute("target", "blinky");
+
         return elem;
     },
 
@@ -184,6 +187,7 @@ var blinky = {
         }
 
         var elem = gesso.createLink(parent, result.tests_url, "Tests");
+
         elem.setAttribute("target", "blinky");
 
         return elem;
@@ -229,8 +233,8 @@ var blinky = {
         var prevResult = job.previous_result;
 
         var elem = gesso.createDiv(parent, "job");
-
         var summary = gesso.createLink(elem, job.html_url);
+
         summary.setAttribute("target", "blinky");
         summary.setAttribute("class", "job-summary");
 
@@ -259,7 +263,7 @@ var blinky = {
             elem.classList.add("stale-data");
         }
 
-        var secondsNow = new Date().getTime() / 1000; // XXX use a shared snapshot time?
+        var secondsNow = blinky.state.renderTimestamp / 1000;
         var secondsAgo = secondsNow - currResult.start_time;
 
         gesso.createDiv(summary, "summary-start-time", blinky.formatDuration(secondsAgo));
@@ -293,7 +297,7 @@ var blinky = {
 
         if (currResult) {
             var duration = blinky.formatDuration(currResult.duration);
-            var secondsNow = new Date().getTime() / 1000; // XXX shared timestamp
+            var secondsNow = blinky.state.renderTimestamp / 1000;
             var secondsAgo = secondsNow - currResult.start_time;
             var timeAgo = blinky.formatDuration(secondsAgo) + " ago";
 
@@ -352,7 +356,7 @@ var blinky = {
 
         var tbody = gesso.createElement(elem, "tbody");
 
-        var nowSeconds = new Date().getTime() / 1000; // XXX share me
+        var nowSeconds = blinky.state.renderTimestamp / 1000;
 
         var jobs = state.data.jobs;
         var groups = state.data.groups;
@@ -445,11 +449,15 @@ var blinky = {
             category: "all",
             view: "panel"
         },
-        data: null
+        data: null,
+        dataFetchState: null,
+        renderTimestamp: null
     },
 
     renderPage: function (state) {
         console.log("Rendering page");
+
+        blinky.state.renderTimestamp = new Date().getTime();
 
         var oldContent = $("#content");
         var newContent = document.createElement("div");
@@ -473,7 +481,7 @@ var blinky = {
     checkFreshness: function () {
         console.log("Checking freshness");
 
-        if (gesso.fetchDataAttributes.failedAttempts >= 1) {
+        if (blinky.state.dataFetchState.failedAttempts >= 10) {
             window.alert("Trouble! I can't reach the server.");
         }
     },
@@ -498,9 +506,10 @@ var blinky = {
             }
 
             if (blinky.state.query.view === "table") {
-                gesso.fetchData("/data.json", handler)
+                gesso.fetch("/data.json", handler)
             } else {
-                gesso.fetchDataPeriodically("/data.json", handler);
+                blinky.state.dataFetchState = gesso.fetchPeriodically("/data.json", handler);
+                window.setInterval(blinky.checkFreshness, 60 * 1000);
             }
         });
 
