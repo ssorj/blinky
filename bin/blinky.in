@@ -21,7 +21,8 @@
 import os
 import sys
 
-home = os.path.normpath("@blinky_home@")
+default_home = os.path.normpath("@blinky_home@")
+home = os.environ.get("BLINKY_HOME", default_home)
 sys.path.insert(0, os.path.join(home, "python"))
 
 import brbn
