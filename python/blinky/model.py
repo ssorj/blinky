@@ -153,7 +153,7 @@ class _ModelObject:
     def __init__(self, model, collection, name):
         assert isinstance(model, Model), model
         assert isinstance(collection, list), collection
-        assert isinstance(name, str), name
+        assert isinstance(name, (str, type(None))), name
 
         self.model = model
         self.id = len(collection)
