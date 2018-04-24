@@ -59,7 +59,11 @@ class AppveyorJob(HttpJob):
         status = data["status"]
         status = _status_mapping.get(status, status)
 
-        start_time = data["started"]
+        start_time = data.get("started")
+
+        if start_time is None:
+            start_time = data["created"]
+
         start_time = start_time[:26]
         start_time = _datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S.%f")
         start_time = _calendar.timegm(start_time.timetuple())
