@@ -152,17 +152,24 @@ div.job.blinky a.job-summary {
     animation: blinky 3s steps(30, start) infinite;
 }
 
-div.summary-component {
-    font-size: 0.95em;
+a.job-summary > * {
+    font-size: 0.85em;
     margin: 0.2em 0;
+    line-height: 1.1em;
+}
+
+div.summary-component {
+    font-size: 0.9em;
     font-weight: 500;
 }
 
-div.summary-job, div.summary-environment, div.summary-start-time {
+/*
+div.summary-job, div.summary-agent, div.summary-environment, div.summary-start-time {
     font-size: 0.85em;
-    margin: 0.2em 0;
+    margin: 0.15em 0;
     line-height: 1.2em;
 }
+*/
 
 div.job-detail {
     display: none;

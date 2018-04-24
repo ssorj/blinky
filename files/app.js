@@ -228,6 +228,7 @@ var blinky = {
 
     createJob: function (parent, state, job) {
         var component = state.data.components[job.component_id];
+        var agent = state.data.agents[job.agent_id];
         var environment = state.data.environments[job.environment_id];
         var currResult = job.current_result;
         var prevResult = job.previous_result;
@@ -239,7 +240,12 @@ var blinky = {
         summary.setAttribute("class", "job-summary");
 
         gesso.createDiv(summary, "summary-component", component.name);
-        gesso.createDiv(summary, "summary-job", job.name);
+
+        if (job.name != null) {
+            gesso.createDiv(summary, "summary-job", job.name);
+        }
+
+        gesso.createDiv(summary, "summary-agent", agent.name);
         gesso.createDiv(summary, "summary-environment", environment.name);
 
         if (!currResult) {
