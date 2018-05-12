@@ -487,8 +487,12 @@ var blinky = {
     checkFreshness: function () {
         console.log("Checking freshness");
 
-        if (blinky.state.dataFetchState.failedAttempts >= 10) {
-            window.alert("Trouble! I can't reach the server.");
+        var failedAttempts = blinky.state.dataFetchState.failedAttempts;
+
+        if (failedAttempts == 0) {
+            $("body").classList.remove("disconnected");
+        } else if (failedAttempts >= 10) {
+            $("body").classList.add("disconnected");
         }
     },
 

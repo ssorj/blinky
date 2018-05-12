@@ -77,10 +77,12 @@ var gesso = {
 
         function loadHandler(event) {
             if (event.target.status === 200) {
-                state.etag = event.target.getResponseHeader("ETag");
                 state.failedAttempts = 0;
+                state.etag = event.target.getResponseHeader("ETag");
 
                 dataHandler(JSON.parse(event.target.responseText));
+            } else if (event.target.status == 304) {
+                state.failedAttempts = 0;
             }
 
             state.timestamp = new Date().getTime();

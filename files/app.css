@@ -57,6 +57,10 @@ td, th {
     text-align: left;
 }
 
+body.disconnected {
+    opacity: 0.3;
+}
+
 span.disabled {
     color: gray;
 }
