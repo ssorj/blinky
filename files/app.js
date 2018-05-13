@@ -23,8 +23,8 @@
 
 var blinky = {
     formatDuration: function (seconds) {
-        if (seconds < 0) {
-            seconds = 0;
+        if (!seconds) {
+            return "-";
         }
 
         var minutes = Math.floor(seconds / 60);
@@ -269,8 +269,12 @@ var blinky = {
             elem.classList.add("stale-data");
         }
 
-        var secondsNow = blinky.state.renderTimestamp / 1000;
-        var secondsAgo = secondsNow - currResult.start_time;
+        if (currResult.start_time) {
+            var secondsNow = blinky.state.renderTimestamp / 1000;
+            var secondsAgo = secondsNow - currResult.start_time;
+        } else {
+            var secondsAgo = null;
+        }
 
         gesso.createDiv(summary, "summary-start-time", blinky.formatDuration(secondsAgo));
         blinky.createJobDetail(elem, state, job);
@@ -302,10 +306,15 @@ var blinky = {
         blinky.createObjectLink(td, job);
 
         if (currResult) {
+            if (currResult.start_time) {
+                var secondsNow = blinky.state.renderTimestamp / 1000;
+                var secondsAgo = secondsNow - currResult.start_time;
+                var timeAgo = blinky.formatDuration(secondsAgo) + " ago";
+            } else {
+                var timeAgo = "-";
+            }
+
             var duration = blinky.formatDuration(currResult.duration);
-            var secondsNow = blinky.state.renderTimestamp / 1000;
-            var secondsAgo = secondsNow - currResult.start_time;
-            var timeAgo = blinky.formatDuration(secondsAgo) + " ago";
 
             td = blinky.createJobDetailField(tbody, "Number", null);
             link = blinky.createObjectLink(td, currResult);
@@ -404,8 +413,14 @@ var blinky = {
             blinky.createObjectLink(td, agent);
 
             if (currResult) {
-                var timeSeconds = currResult.start_time;
-                var timeAgo = blinky.formatDuration(nowSeconds - timeSeconds) + " ago";
+                if (currResult.start_time) {
+                    var timeSeconds = currResult.start_time;
+                    var timeAgo = blinky.formatDuration(nowSeconds - timeSeconds) + " ago";
+                } else {
+                    var timeSeconds = 0;
+                    var timeAgo = "-";
+                }
+
                 var duration = blinky.formatDuration(currResult.duration);
 
                 td = gesso.createElement(tr, "td");
