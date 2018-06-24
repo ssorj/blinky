@@ -23,6 +23,7 @@ import atexit as _atexit
 import binascii as _binascii
 import codecs as _codecs
 import collections as _collections
+import ctypes as _ctypes
 import fnmatch as _fnmatch
 import getpass as _getpass
 import json as _json
@@ -43,8 +44,12 @@ import types as _types
 import uuid as _uuid
 
 from subprocess import CalledProcessError
+from subprocess import PIPE
 
 # See documentation at http://www.ssorj.net/projects/plano.html
+
+class PlanoException(Exception):
+    pass
 
 LINE_SEP = _os.linesep
 PATH_SEP = _os.sep
@@ -52,9 +57,10 @@ PATH_VAR_SEP = _os.pathsep
 ENV = _os.environ
 ARGS = _sys.argv
 
-STD_ERR = _sys.stderr
-STD_OUT = _sys.stdout
-NULL_DEV = _os.devnull
+STDIN = _sys.stdin
+STDOUT = _sys.stdout
+STDERR = _sys.stderr
+DEVNULL = _os.devnull
 
 _message_levels = (
     "debug",
@@ -68,7 +74,7 @@ _notice = _message_levels.index("notice")
 _warn = _message_levels.index("warn")
 _error = _message_levels.index("error")
 
-_message_output = STD_ERR
+_message_output = STDERR
 _message_threshold = _notice
 
 def set_message_output(writeable):
@@ -87,7 +93,7 @@ def fail(message, *args):
     if isinstance(message, BaseException):
         raise message
 
-    raise Exception(message.format(*args))
+    raise PlanoException(message.format(*args))
 
 def error(message, *args):
     _print_message("Error", message, args)
@@ -150,16 +156,16 @@ def _format_message(category, message, args):
     return message
 
 def eprint(*args, **kwargs):
-    print(*args, file=STD_ERR, **kwargs)
+    print(*args, file=_sys.stderr, **kwargs)
 
 def flush():
-    STD_OUT.flush()
-    STD_ERR.flush()
+    _sys.stdout.flush()
+    _sys.stderr.flush()
 
 absolute_path = _os.path.abspath
 normalize_path = _os.path.normpath
 real_path = _os.path.realpath
-exists = _os.path.exists
+exists = _os.path.lexists
 is_absolute = _os.path.isabs
 is_dir = _os.path.isdir
 is_file = _os.path.isfile
@@ -173,8 +179,8 @@ split_extension = _os.path.splitext
 current_dir = _os.getcwd
 sleep = _time.sleep
 
-def home_dir(user=""):
-    return _os.path.expanduser("~{0}".format(user))
+def home_dir(user=None):
+    return _os.path.expanduser("~{0}".format(user or ""))
 
 def parent_dir(path):
     path = normalize_path(path)
@@ -304,31 +310,43 @@ def write_json(file, obj):
     with _codecs.open(file, encoding="utf-8", mode="w") as f:
         return _json.dump(obj, f, indent=4, separators=(",", ": "), sort_keys=True)
 
-_temp_dir = _tempfile.mkdtemp(prefix="plano-")
+def make_temp_file(suffix=""):
+    try:
+        dir = ENV["XDG_RUNTIME_DIR"]
+    except KeyError:
+        dir = None
 
-def _remove_temp_dir():
-    _shutil.rmtree(_temp_dir, ignore_errors=True)
+    return _tempfile.mkstemp(prefix="plano-", suffix=suffix, dir=dir)[1]
 
-_atexit.register(_remove_temp_dir)
+def make_temp_dir(suffix=""):
+    try:
+        dir = ENV["XDG_RUNTIME_DIR"]
+    except KeyError:
+        dir = None
 
-# XXX Use _tempfile instead
-def make_temp_file(extension=""):
-    key = unique_id(4)
-    file = join(_temp_dir, "_file_{0}{1}".format(key, extension))
+    return _tempfile.mkdtemp(prefix="plano-", suffix=suffix, dir=dir)
 
-    return append(file, "")
+class temp_file(object):
+    def __init__(self, suffix=""):
+        self.file = make_temp_file(suffix=suffix)
 
-# This one is deleted on process exit
-def make_temp_dir():
-    return _tempfile.mkdtemp(prefix="_dir_", dir=_temp_dir)
+    def __enter__(self):
+        return self.file
 
-# This one sticks around
-def make_user_temp_dir():
-    temp_dir = _tempfile.gettempdir()
-    user = _getpass.getuser()
-    user_temp_dir = join(temp_dir, user)
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exists(self.file):
+            _os.remove(self.file)
 
-    return make_dir(user_temp_dir)
+class temp_dir(object):
+    def __init__(self, suffix=""):
+        self.dir = make_temp_dir(suffix=suffix)
+
+    def __enter__(self):
+        return self.dir
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exists(self.dir):
+            _shutil.rmtree(self.dir, ignore_errors=True)
 
 def unique_id(length=16):
     assert length >= 1
@@ -487,39 +505,51 @@ class working_dir(object):
         self.prev_dir = change_dir(self.dir)
         return self.dir
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback):
         change_dir(self.prev_dir)
+
+class temp_working_dir(working_dir):
+    def __init__(self):
+        super(temp_working_dir, self).__init__(make_temp_dir())
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        super(temp_working_dir, self).__exit__(exc_type, exc_value, traceback)
+
+        if exists(self.dir):
+            _shutil.rmtree(self.dir, ignore_errors=True)
 
 def call(command, *args, **kwargs):
     proc = start_process(command, *args, **kwargs)
-
-    wait_for_process(proc)
-
-    if proc.returncode != 0:
-        command_string = _command_string(command)
-        command_string = command_string.format(*args)
-
-        raise CalledProcessError(proc.returncode, command_string)
+    check_process(proc)
 
 def call_for_exit_code(command, *args, **kwargs):
     proc = start_process(command, *args, **kwargs)
+    return wait_for_process(proc)
 
-    wait_for_process(proc)
-
-    return proc.returncode
-
-def call_for_output(command, *args, **kwargs):
+def call_for_stdout(command, *args, **kwargs):
     kwargs["stdout"] = _subprocess.PIPE
 
     proc = start_process(command, *args, **kwargs)
     output = proc.communicate()[0]
     exit_code = proc.poll()
 
-    if exit_code not in (None, 0):
-        command_string = _command_string(command)
-        command_string = command_string.format(*args)
+    if exit_code != 0:
+        error = CalledProcessError(exit_code, proc.command_string)
+        error.output = output
 
-        error = CalledProcessError(exit_code, command_string)
+        raise error
+
+    return output
+
+def call_for_stderr(command, *args, **kwargs):
+    kwargs["stderr"] = _subprocess.PIPE
+
+    proc = start_process(command, *args, **kwargs)
+    output = proc.communicate()[1]
+    exit_code = proc.poll()
+
+    if exit_code != 0:
+        error = CalledProcessError(exit_code, proc.command_string)
         error.output = output
 
         raise error
@@ -527,55 +557,64 @@ def call_for_output(command, *args, **kwargs):
     return output
 
 def call_and_print_on_error(command, *args, **kwargs):
-    output_file = make_temp_file()
-
-    try:
-        with open(output_file, "w") as out:
-            kwargs["output"] = out
-            call(command, *args, **kwargs)
-    except CalledProcessError:
-        eprint(read(output_file), end="")
-        raise
+    with temp_file() as output_file:
+        try:
+            with open(output_file, "w") as out:
+                kwargs["output"] = out
+                call(command, *args, **kwargs)
+        except CalledProcessError:
+            eprint(read(output_file), end="")
+            raise
 
 _child_processes = list()
 
 class _Process(_subprocess.Popen):
-    def __init__(self, command, *args, **kwargs):
-        super(_Process, self).__init__(command, *args, **kwargs)
+    def __init__(self, command, options, name, command_string):
+        super(_Process, self).__init__(command, **options)
 
-        try:
-            self.name = kwargs["name"]
-        except KeyError:
-            if _is_string(command):
-                self.name = program_name(command)
-            elif isinstance(command, _collections.Iterable):
-                self.name = command[0]
-            else:
-                raise Exception()
+        self.name = name
+        self.command_string = command_string
 
         _child_processes.append(self)
 
+    @property
+    def exit_code(self):
+        return self.returncode
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        stop_process(self)
+
     def __repr__(self):
         return "process {0} ({1})".format(self.pid, self.name)
-
-def _command_string(command):
-    if _is_string(command):
-        return command
-
-    elems = ["\"{0}\"".format(x) if " " in x else x for x in command]
-
-    return " ".join(elems)
 
 def default_sigterm_handler(signum, frame):
     for proc in _child_processes:
         if proc.poll() is None:
             proc.terminate()
 
-    _remove_temp_dir()
+    #_remove_temp_dir()
 
     exit(-(_signal.SIGTERM))
 
 _signal.signal(_signal.SIGTERM, default_sigterm_handler)
+
+def _command_string(command, args):
+    elems = ["\"{0}\"".format(x) if " " in x else x for x in command]
+    string = " ".join(elems)
+    string = string.format(*args)
+
+    return string
+
+_libc = None
+
+if _sys.platform == "linux2":
+    try:
+        _libc = _ctypes.CDLL(_ctypes.util.find_library("c"))
+    except:
+        _traceback.print_exc()
 
 def start_process(command, *args, **kwargs):
     if _is_string(command):
@@ -585,11 +624,16 @@ def start_process(command, *args, **kwargs):
     elif isinstance(command, _collections.Iterable):
         assert len(args) == 0, args
         command_args = command
-        command_string = _command_string(command)
+        command_string = _command_string(command, [])
     else:
         raise Exception()
 
     notice("Calling '{0}'", command_string)
+
+    name = kwargs.get("name", command_args[0])
+
+    kwargs["stdout"] = kwargs.get("stdout", _sys.stdout)
+    kwargs["stderr"] = kwargs.get("stderr", _sys.stderr)
 
     if "output" in kwargs:
         out = kwargs.pop("output")
@@ -597,14 +641,26 @@ def start_process(command, *args, **kwargs):
         kwargs["stdout"] = out
         kwargs["stderr"] = out
 
-    if "shell" in kwargs and kwargs["shell"]:
-        proc = _Process(command_string, **kwargs)
+    if "preexec_fn" not in kwargs:
+        if _libc is not None:
+            kwargs["preexec_fn"] = _libc.prctl(1, _signal.SIGKILL)
+
+    if "shell" in kwargs and kwargs["shell"] is True:
+        proc = _Process(command_string, kwargs, name, command_string)
     else:
-        proc = _Process(command_args, **kwargs)
+        proc = _Process(command_args, kwargs, name, command_string)
 
     debug("{0} started", proc)
 
     return proc
+
+def terminate_process(proc):
+    notice("Terminating {0}", proc)
+
+    if proc.poll() is None:
+        proc.terminate()
+    else:
+        debug("{0} already exited", proc)
 
 def stop_process(proc):
     notice("Stopping {0}", proc)
@@ -637,26 +693,52 @@ def wait_for_process(proc):
 
     return proc.returncode
 
+def check_process(proc):
+    wait_for_process(proc)
+
+    if proc.returncode != 0:
+        raise CalledProcessError(proc.returncode, proc.command_string)
+
+def exec_process(command, *args):
+    if _is_string(command):
+        command = command.format(*args)
+        command_args = _shlex.split(command)
+        command_string = command
+    elif isinstance(command, _collections.Iterable):
+        assert len(args) == 0, args
+        command_args = command
+        command_string = _command_string(command, [])
+    else:
+        raise Exception()
+
+    notice("Calling '{0}'", command_string)
+
+    _os.execvp(command_args[0], command_args[1:])
+
 def make_archive(input_dir, output_dir, archive_stem):
-    temp_dir = make_temp_dir()
-    temp_input_dir = join(temp_dir, archive_stem)
+    assert is_dir(input_dir), input_dir
+    assert is_dir(output_dir), output_dir
+    assert _is_string(archive_stem), archive_stem
 
-    copy(input_dir, temp_input_dir)
-    make_dir(output_dir)
+    with temp_dir() as dir:
+        temp_input_dir = join(dir, archive_stem)
 
-    output_file = "{0}.tar.gz".format(join(output_dir, archive_stem))
-    output_file = absolute_path(output_file)
+        copy(input_dir, temp_input_dir)
+        make_dir(output_dir)
 
-    with working_dir(temp_dir):
-        call("tar -czf {0} {1}", output_file, archive_stem)
+        output_file = "{0}.tar.gz".format(join(output_dir, archive_stem))
+        output_file = absolute_path(output_file)
+
+        with working_dir(dir):
+            call("tar -czf {0} {1}", output_file, archive_stem)
 
     return output_file
 
 def extract_archive(archive_file, output_dir):
-    assert is_file(archive_file)
+    assert is_file(archive_file), archive_file
+    assert is_dir(output_dir), output_dir
 
-    if not exists(output_dir):
-        make_dir(output_dir)
+    make_dir(output_dir)
 
     archive_file = absolute_path(archive_file)
 
@@ -666,24 +748,24 @@ def extract_archive(archive_file, output_dir):
     return output_dir
 
 def rename_archive(archive_file, new_archive_stem):
-    assert is_file(archive_file)
+    assert is_file(archive_file), archive_file
+    assert _is_string(new_archive_stem), new_archive_stem
 
     if name_stem(archive_file) == new_archive_stem:
         return archive_file
 
-    temp_dir = make_temp_dir()
+    with temp_dir() as dir:
+        extract_archive(archive_file, dir)
 
-    extract_archive(archive_file, temp_dir)
+        input_name = list_dir(dir)[0]
+        input_dir = join(dir, input_name)
+        output_file = make_archive(input_dir, dir, new_archive_stem)
+        output_name = file_name(output_file)
+        archive_dir = parent_dir(archive_file)
+        new_archive_file = join(archive_dir, output_name)
 
-    input_name = list_dir(temp_dir)[0]
-    input_dir = join(temp_dir, input_name)
-    output_file = make_archive(input_dir, temp_dir, new_archive_stem)
-    output_name = file_name(output_file)
-    archive_dir = parent_dir(archive_file)
-    new_archive_file = join(archive_dir, output_name)
-
-    move(output_file, new_archive_file)
-    remove(archive_file)
+        move(output_file, new_archive_file)
+        remove(archive_file)
 
     return new_archive_file
 
