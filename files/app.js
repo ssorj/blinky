@@ -101,7 +101,7 @@ class Blinky {
         let status = gesso.createSpan(elem, "#timestamp", time.toLocaleString());
 
         gesso.createText(elem, " \u2022 ");
-        gesso.createLink(elem, "pretty-data.html?url=/data.json", "Data", {target: "blinky"});
+        gesso.createLink(elem, "pretty-data.html?url=/data.json", {text: "Data", target: "blinky"});
     }
 
     renderViewSelector(parent) {
@@ -213,15 +213,15 @@ class Blinky {
     }
 
     renderJob(parent, job) {
+        let elem = gesso.createDiv(parent, "job");
+
         let component = this.state.data.components[job.component_id];
         let agent = this.state.data.agents[job.agent_id];
         let environment = this.state.data.environments[job.environment_id];
         let currResult = job.current_result;
         let prevResult = job.previous_result;
 
-        let elem = gesso.createDiv(parent, "job");
-        let summary = gesso.createLink(elem, job.html_url,
-                                       {"class": "job-summary", target: "blinky"});
+        let summary = gesso.createLink(elem, job.html_url, {"class": "job-summary", target: "blinky"});
 
         gesso.createDiv(summary, "summary-component", component.name);
 
@@ -238,6 +238,10 @@ class Blinky {
         }
 
         summary.setAttribute("href", currResult.html_url);
+
+        if (currResult.tests_url != null) {
+            summary.setAttribute("href", currResult.tests_url);
+        }
 
         if (currResult.status === "PASSED") {
             elem.classList.add("passed");
