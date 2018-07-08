@@ -18,14 +18,12 @@
 #
 
 import brbn as _brbn
-import datetime as _datetime
 import json as _json
 import logging as _logging
 import os as _os
 import re as _re
 import requests as _requests
 import sys as _sys
-import time as _time
 
 _log = _logging.getLogger("blinky.app")
 

@@ -21,223 +21,207 @@
 
 "use strict";
 
-var blinky = {
-    formatDuration: function (seconds) {
-        if (!seconds) {
-            return "-";
-        }
+const gesso = new Gesso();
 
-        var minutes = Math.floor(seconds / 60);
-        var hours = Math.floor(seconds / 3600);
-        var days = Math.floor(seconds / 86400);
-        var weeks = Math.floor(seconds / 432000);
+class Blinky {
+    constructor() {
+        this.state = {
+            query: {
+                category: "all",
+                view: "panel",
+            },
+            data: null,
+            dataFetchState: null,
+            renderTime: null,
+        };
 
-        if (weeks >= 2) {
-            return weeks + "w";
-        }
+        window.addEventListener("statechange", (event) => {
+            this.renderPage();
 
-        if (days >= 2) {
-            return days + "d";
-        }
+            if (this.state.query.view === "table") {
+                Sortable.init();
+            }
+        });
 
-        if (hours >= 1) {
-            return hours + "h";
-        }
+        window.addEventListener("load", (event) => {
+            if (window.location.search) {
+                this.state.query = gesso.parseQueryString(window.location.search);
+            }
 
-        if (minutes >= 1) {
-            return minutes + "m";
-        }
+            if (this.state.query.view === "table") {
+                gesso.fetch("/data.json", (data) => {
+                    this.state.data = data;
+                    window.dispatchEvent(new Event("statechange"));
+                });
+            } else {
+                this.state.dataFetchState = gesso.fetchPeriodically("/data.json", (data) => {
+                    this.state.data = data;
+                    window.dispatchEvent(new Event("statechange"));
+                });
 
-        return Math.floor(seconds) + "s";
-    },
+                window.setInterval(() => { this.checkFreshness }, 60 * 1000);
+            }
+        });
 
-    createHeader: function (parent, state) {
-        var elem = gesso.createDiv(parent, "header");
+        window.addEventListener("popstate", (event) => {
+            this.state.query = event.state;
+            window.dispatchEvent(new Event("statechange"));
+        });
+    }
 
-        blinky.createViewSelector(elem, state);
-        gesso.createElement(elem, "h1", state.data.title);
-        blinky.createCategorySelector(elem, state);
+    renderHeader(parent) {
+        let elem = gesso.createDiv(parent, "header");
 
-        return elem;
-    },
+        this.renderViewSelector(elem);
 
-    createBody: function (parent, state) {
-        var elem = gesso.createDiv(parent, "body");
-        var view = state.query.view;
+        gesso.createElement(elem, "h1", this.state.data.title);
+
+        this.renderCategorySelector(elem);
+    }
+
+    renderBody(parent) {
+        let elem = gesso.createDiv(parent, "body");
+        let view = this.state.query.view;
 
         if (view === "panel") {
-            blinky.createPanel(elem, state);
+            this.renderPanelView(elem);
         } else if (view === "table") {
-            blinky.createTable(elem, state);
+            this.renderTableView(elem);
         } else {
-            // XXX Error output
+            throw new Error();
         }
+    }
 
-        return elem;
-    },
+    renderFooter(parent) {
+        let elem = gesso.createDiv(parent, "footer");
 
-    createFooter: function (parent, state) {
-        var elem = gesso.createDiv(parent, "footer");
+        let offset = new Date().getTimezoneOffset() * 60;
+        let time = new Date((this.state.data.update_time - offset) * 1000);
 
-        var offset = new Date().getTimezoneOffset() * 60;
-        var time = new Date((state.data.update_time - offset) * 1000);
-
-        var status = gesso.createElement(elem, "span", time.toLocaleString());
-
-        status.setAttribute("id", "timestamp");
+        let status = gesso.createSpan(elem, "#timestamp", time.toLocaleString());
 
         gesso.createText(elem, " \u2022 ");
+        gesso.createLink(elem, "pretty-data.html?url=/data.json", "Data", {target: "blinky"});
+    }
 
-        var link = gesso.createLink(elem, "pretty-data.html?url=/data.json", "Data");
-        link.setAttribute("target", "blinky");
+    renderViewSelector(parent) {
+        let elem = gesso.createDiv(parent, "view-selector");
 
-        return elem;
-    },
+        this.renderViewSelectorLink(elem, "Panel", "panel");
+        this.renderViewSelectorLink(elem, "Table", "table");
+    }
 
-    createViewSelector: function (parent, state) {
-        var elem = gesso.createDiv(parent, "view-selector");
-
-        blinky.createViewSelectorLink(elem, state, "Panel", "panel");
-        blinky.createViewSelectorLink(elem, state, "Table", "table");
-
-        return elem;
-    },
-
-    createViewSelectorLink: function (parent, state, text, view) {
-        var query = Object.assign({}, state.query);
-
+    renderViewSelectorLink(parent, text, view) {
+        let query = Object.assign({}, this.state.query);
         query.view = view;
 
-        var elem = blinky.createStateChangeLink(parent, state, text, query);
+        this.renderStateChangeLink(parent, text, query, view === this.state.query.view);
+    }
 
-        if (view === state.query.view) {
-            elem.classList.add("selected");
+    renderCategorySelector(parent) {
+        let elem = gesso.createDiv(parent, "category-selector");
+
+        this.renderCategorySelectorLink(elem, "All", "all");
+
+        let categories = this.state.data.categories;
+
+        for (let categoryId of Object.keys(categories)) {
+            let category = categories[categoryId];
+            this.renderCategorySelectorLink(elem, category.name, category.key);
         }
+    }
 
-        return elem;
-    },
-
-    createCategorySelector: function (parent, state) {
-        var elem = gesso.createDiv(parent, "category-selector");
-
-        blinky.createCategorySelectorLink(elem, state, "All", "all");
-
-        var categories = state.data.categories;
-
-        for (var categoryId in categories) {
-            var category = categories[categoryId];
-            blinky.createCategorySelectorLink(elem, state, category.name, category.key);
-        }
-
-        return elem;
-    },
-
-    createCategorySelectorLink: function (parent, state, text, category) {
-        var query = Object.assign({}, state.query);
-
+    renderCategorySelectorLink(parent, text, category) {
+        let query = Object.assign({}, this.state.query);
         query.category = category;
 
-        var elem = blinky.createStateChangeLink(parent, state, text, query);
+        this.renderStateChangeLink(parent, text, query, category === this.state.query.category);
+    }
 
-        if (category === state.query.category) {
+    renderStateChangeLink(parent, text, query, selected) {
+        let href = "?" + gesso.emitQueryString(query);
+        let elem = gesso.createLink(parent, href, text);
+
+        if (selected) {
             elem.classList.add("selected");
         }
 
-        return elem;
-    },
-
-    createStateChangeLink: function (parent, state, text, query) {
-        var href = "?" + gesso.emitQueryString(query);
-        var elem = gesso.createLink(parent, href, text);
-
-        elem.addEventListener("click", function (event) {
+        elem.addEventListener("click", (event) => {
             event.preventDefault();
 
-            state.query = query;
-            window.history.pushState(state.query, null, event.target.href);
+            this.state.query = query;
+            window.history.pushState(this.state.query, null, event.target.href);
 
             window.dispatchEvent(new Event("statechange"));
         });
+    }
 
-        return elem;
-    },
-
-    createObjectLink: function (parent, obj) {
-        var elem = gesso.createLink(parent, obj.html_url, obj.name);
-
-        elem.setAttribute("target", "blinky");
-
-        return elem;
-    },
-
-    createObjectDataLink: function (parent, obj) {
-        var url = "pretty-data.html?url=" + encodeURIComponent(obj.data_url);
-        var elem = gesso.createLink(parent, url, obj.name);
-
-        elem.setAttribute("target", "blinky");
-
-        return elem;
-    },
-
-    createResultTestsLink: function (parent, result) {
-        if (!result.tests_url) {
-            var elem = gesso.createElement(parent, "span", "Tests");
-            elem.setAttribute("class", "disabled");
-            return elem;
+    createObjectLink(parent, obj, text) {
+        if (text == null) {
+            text = obj.name;
         }
 
-        var elem = gesso.createLink(parent, result.tests_url, "Tests");
+        if (text == null) {
+            text = "-";
+        }
 
-        elem.setAttribute("target", "blinky");
+        return gesso.createLink(parent, obj.html_url, {text: text, target: "blinky"});
+    }
 
-        return elem;
-    },
+    renderResultLinks(parent, result) {
+        let data_url = "pretty-data.html?url=" + encodeURIComponent(result.data_url);
 
-    createPanel: function (parent, state) {
-        var elem = gesso.createDiv(parent, "panel");
+        gesso.createLink(parent, data_url, {text: "Data", target: "blinky"});
+        gesso.createText(parent, ", ");
 
-        var groups = state.data.groups;
-        var categories = state.data.categories;
-        var jobs = state.data.jobs;
+        if (result.tests_url == null) {
+            gesso.createSpan(parent, "disabled", "Tests");
+        } else {
+            gesso.createLink(parent, result.tests_url, {text: "Tests", target: "blinky"});
+        }
+    }
 
-        var selection = state.query.category;
+    renderPanelView(parent) {
+        let elem = gesso.createDiv(parent, "panel");
 
-        for (var groupId in groups) {
-            var group = groups[groupId];
-            var category = categories[group.category_id];
+        let groups = this.state.data.groups;
+        let categories = this.state.data.categories;
+        let jobs = this.state.data.jobs;
+
+        let selection = this.state.query.category;
+
+        for (let groupId of Object.keys(groups)) {
+            let group = groups[groupId];
+            let category = categories[group.category_id];
 
             if (selection !== "all" && selection !== category.key) {
                 continue;
             }
 
-            var groupElem = gesso.createDiv(elem, "group");
+            let groupElem = gesso.createDiv(elem, "group");
 
             gesso.createElement(groupElem, "h2", group.name);
 
-            var jobContainer = gesso.createDiv(groupElem, "job-container");
-            var jobIds = group.job_ids;
+            let jobContainer = gesso.createDiv(groupElem, "job-container");
+            let jobIds = group.job_ids;
 
-            for (var j = 0; j < jobIds.length; j++) {
-                var job = jobs[jobIds[j]];
-                blinky.createJob(jobContainer, state, job);
+            for (let j = 0; j < jobIds.length; j++) {
+                let job = jobs[jobIds[j]];
+                this.renderJob(jobContainer, job);
             }
         }
+    }
 
-        return elem;
-    },
+    renderJob(parent, job) {
+        let component = this.state.data.components[job.component_id];
+        let agent = this.state.data.agents[job.agent_id];
+        let environment = this.state.data.environments[job.environment_id];
+        let currResult = job.current_result;
+        let prevResult = job.previous_result;
 
-    createJob: function (parent, state, job) {
-        var component = state.data.components[job.component_id];
-        var agent = state.data.agents[job.agent_id];
-        var environment = state.data.environments[job.environment_id];
-        var currResult = job.current_result;
-        var prevResult = job.previous_result;
-
-        var elem = gesso.createDiv(parent, "job");
-        var summary = gesso.createLink(elem, job.html_url);
-
-        summary.setAttribute("target", "blinky");
-        summary.setAttribute("class", "job-summary");
+        let elem = gesso.createDiv(parent, "job");
+        let summary = gesso.createLink(elem, job.html_url,
+                                       {"class": "job-summary", target: "blinky"});
 
         gesso.createDiv(summary, "summary-component", component.name);
 
@@ -248,9 +232,9 @@ var blinky = {
         gesso.createDiv(summary, "summary-agent", agent.name);
         gesso.createDiv(summary, "summary-environment", environment.name);
 
-        if (!currResult) {
+        if (currResult == null) {
             elem.classList.add("no-data");
-            return elem;
+            return;
         }
 
         summary.setAttribute("href", currResult.html_url);
@@ -260,7 +244,7 @@ var blinky = {
         } else if (currResult.status === "FAILED") {
             elem.classList.add("failed");
 
-            if (prevResult && prevResult.status === "PASSED") {
+            if (prevResult != null && prevResult.status === "PASSED") {
                 elem.classList.add("blinky");
             }
         }
@@ -269,94 +253,81 @@ var blinky = {
             elem.classList.add("stale-data");
         }
 
-        if (currResult.start_time) {
-            var secondsNow = blinky.state.renderTimestamp / 1000;
-            var secondsAgo = secondsNow - currResult.start_time;
-        } else {
-            var secondsAgo = null;
+        let ago = null;
+
+        if (currResult.start_time != null) {
+            ago = this.state.renderTime - currResult.start_time;
         }
 
-        gesso.createDiv(summary, "summary-start-time", blinky.formatDuration(secondsAgo));
-        blinky.createJobDetail(elem, state, job);
+        gesso.createDiv(summary, "summary-start-time", gesso.formatDurationBrief(ago));
 
-        return elem;
-    },
+        this.renderJobDetail(elem, job);
+    }
 
-    createJobDetail: function (parent, state, job) {
-        var elem = gesso.createDiv(parent, "job-detail");
+    renderJobDetail(parent, job) {
+        let elem = gesso.createDiv(parent, "job-detail");
 
-        var component = state.data.components[job.component_id];
-        var environment = state.data.environments[job.environment_id];
-        var agent = state.data.agents[job.agent_id];
-        var currResult = job.current_result;
-        var prevResult = job.previous_result;
+        let component = this.state.data.components[job.component_id];
+        let environment = this.state.data.environments[job.environment_id];
+        let agent = this.state.data.agents[job.agent_id];
+        let currResult = job.current_result;
+        let prevResult = job.previous_result;
 
-        var table = gesso.createElement(elem, "table");
-        var tbody = gesso.createElement(table, "tbody");
-        var td = null;
-        var link = null;
+        let table = gesso.createElement(elem, "table");
+        let tbody = gesso.createElement(table, "tbody");
+        let td;
 
-        blinky.createJobDetailField(tbody, "Component", component.name);
-        blinky.createJobDetailField(tbody, "Environment", environment.name);
+        this.createJobDetailField(tbody, "Component", component.name);
+        this.createJobDetailField(tbody, "Environment", environment.name);
 
-        td = blinky.createJobDetailField(tbody, "Agent", null);
-        blinky.createObjectLink(td, agent);
+        td = this.createJobDetailField(tbody, "Agent");
+        this.createObjectLink(td, agent);
 
-        td = blinky.createJobDetailField(tbody, "Job", null);
-        blinky.createObjectLink(td, job);
+        td = this.createJobDetailField(tbody, "Job");
+        this.createObjectLink(td, job);
 
-        if (currResult) {
-            if (currResult.start_time) {
-                var secondsNow = blinky.state.renderTimestamp / 1000;
-                var secondsAgo = secondsNow - currResult.start_time;
-                var timeAgo = blinky.formatDuration(secondsAgo) + " ago";
+        if (currResult != null) {
+            let ago = "-";
+
+            if (currResult.start_time != null) {
+                let millisAgo = this.state.renderTime - currResult.start_time;
+                ago = gesso.formatDurationBrief(millisAgo) + " ago";
+            }
+
+            let duration = gesso.formatDurationBrief(currResult.duration);
+
+            td = this.createJobDetailField(tbody, "Number");
+            this.createObjectLink(td, currResult, currResult.number);
+
+            this.createJobDetailField(tbody, "Time", ago);
+            this.createJobDetailField(tbody, "Duration", duration);
+            this.createJobDetailField(tbody, "Status", currResult.status);
+
+            if (prevResult == null) {
+                this.createJobDetailField(tbody, "Prev status", "-");
             } else {
-                var timeAgo = "-";
+                this.createJobDetailField(tbody, "Prev status", prevResult.status);
             }
 
-            var duration = blinky.formatDuration(currResult.duration);
-
-            td = blinky.createJobDetailField(tbody, "Number", null);
-            link = blinky.createObjectLink(td, currResult);
-            link.textContent = currResult.number;
-
-            blinky.createJobDetailField(tbody, "Time", timeAgo);
-            blinky.createJobDetailField(tbody, "Duration", duration);
-            blinky.createJobDetailField(tbody, "Status", currResult.status);
-
-            if (prevResult) {
-                blinky.createJobDetailField(tbody, "Prev status", prevResult.status);
-            }
-
-            td = blinky.createJobDetailField(tbody, "Links", null);
-
-            link = blinky.createObjectDataLink(td, currResult)
-            link.textContent = "Data";
-
-            gesso.createText(td, ", ");
-
-            link = blinky.createResultTestsLink(td, currResult);
+            td = this.createJobDetailField(tbody, "Links");
+            this.renderResultLinks(td, currResult);
         }
+    }
 
-        return elem;
-    },
-
-    createJobDetailField: function (parent, name, text) {
-        var tr = gesso.createElement(parent, "tr");
-        var th = gesso.createElement(tr, "th", name);
-        var td = gesso.createElement(tr, "td", text);
+    createJobDetailField(parent, name, text) {
+        let tr = gesso.createElement(parent, "tr");
+        let th = gesso.createElement(tr, "th", name);
+        let td = gesso.createElement(tr, "td", text);
 
         return td;
-    },
+    }
 
-    createTable: function (parent, state) {
-        var elem = gesso.createElement(parent, "table");
+    renderTableView(parent) {
+        let elem = gesso.createElement(parent, "table",
+                                       {"class": "jobs", "data-sortable": "data-sortable"});
 
-        elem.classList.add("jobs");
-        elem.setAttribute("data-sortable", "data-sortable");
-
-        var thead = gesso.createElement(elem, "thead");
-        var tr = gesso.createElement(thead, "tr");
+        let thead = gesso.createElement(elem, "thead");
+        let tr = gesso.createElement(thead, "tr");
 
         gesso.createElement(tr, "th", "Component");
         gesso.createElement(tr, "th", "Environment");
@@ -369,89 +340,70 @@ var blinky = {
         gesso.createElement(tr, "th", "Prev status");
         gesso.createElement(tr, "th", "Links");
 
-        var tbody = gesso.createElement(elem, "tbody");
+        let tbody = gesso.createElement(elem, "tbody");
 
-        var nowSeconds = blinky.state.renderTimestamp / 1000;
+        let jobs = this.state.data.jobs;
+        let groups = this.state.data.groups;
+        let categories = this.state.data.categories;
+        let components = this.state.data.components;
+        let environments = this.state.data.environments;
+        let agents = this.state.data.agents;
 
-        var jobs = state.data.jobs;
-        var groups = state.data.groups;
-        var categories = state.data.categories;
-        var components = state.data.components;
-        var environments = state.data.environments;
-        var agents = state.data.agents;
+        let selection = this.state.query.category;
 
-        var selection = state.query.category;
+        for (let jobId of Object.keys(jobs)) {
+            let job = jobs[jobId];
 
-        for (var jobId in jobs) {
-            var job = jobs[jobId];
-
-            var group = groups[job.group_id];
-            var category = categories[group.category_id];
+            let group = groups[job.group_id];
+            let category = categories[group.category_id];
 
             if (selection !== "all" && selection !== category.key) {
                 continue;
             }
 
-            var component = components[job.component_id];
-            var environment = environments[job.environment_id];
-            var agent = agents[job.agent_id];
+            let component = components[job.component_id];
+            let environment = environments[job.environment_id];
+            let agent = agents[job.agent_id];
 
-            var currResult = job.current_result;
-            var prevResult = job.previous_result;
+            let currResult = job.current_result;
+            let prevResult = job.previous_result;
 
-            var tr = gesso.createElement(tbody, "tr");
-            var td = null;
-            var link = null;
-
+            let tr = gesso.createElement(tbody, "tr");
             gesso.createElement(tr, "td", component.name);
             gesso.createElement(tr, "td", environment.name);
 
-            td = gesso.createElement(tr, "td");
-            blinky.createObjectLink(td, job);
+            let td;
 
             td = gesso.createElement(tr, "td");
-            blinky.createObjectLink(td, agent);
+            this.createObjectLink(td, job);
+
+            td = gesso.createElement(tr, "td");
+            this.createObjectLink(td, agent);
 
             if (currResult) {
+                let duration = gesso.formatDurationBrief(currResult.duration);
+                let ago = "-";
+                let prevResultStatus = "-";
+
                 if (currResult.start_time) {
-                    var timeSeconds = currResult.start_time;
-                    var timeAgo = blinky.formatDuration(nowSeconds - timeSeconds) + " ago";
-                } else {
-                    var timeSeconds = 0;
-                    var timeAgo = "-";
+                    let millisAgo = this.state.renderTime - currResult.start_time;
+                    ago = gesso.formatDurationBrief(millisAgo) + " ago";
                 }
-
-                var duration = blinky.formatDuration(currResult.duration);
-
-                td = gesso.createElement(tr, "td");
-                link = blinky.createObjectLink(td, currResult);
-                link.textContent = currResult.number;
-
-                td = gesso.createElement(tr, "td");
-                td.setAttribute("data-value", timeSeconds);
-                td.textContent = timeAgo;
-
-                td = gesso.createElement(tr, "td");
-                td.setAttribute("data-value", currResult.duration);
-                td.textContent = duration;
-
-                td = gesso.createElement(tr, "td")
-                td.textContent = currResult.status;
-
-                td = gesso.createElement(tr, "td");
 
                 if (prevResult) {
-                    td.textContent = prevResult.status;
+                    prevResultStatus = prevResult.status;
                 }
 
                 td = gesso.createElement(tr, "td");
+                this.createObjectLink(td, currResult, currResult.number);
 
-                link = blinky.createObjectDataLink(td, currResult);
-                link.textContent = "Data";
+                gesso.createElement(tr, "td", {text: ago, "data-value": currResult.start_time});
+                gesso.createElement(tr, "td", {text: duration, "data-value": currResult.duration});
+                gesso.createElement(tr, "td", currResult.status);
+                gesso.createElement(tr, "td", prevResultStatus);
 
-                gesso.createText(td, ", ");
-
-                link = blinky.createResultTestsLink(td, currResult);
+                td = gesso.createElement(tr, "td");
+                this.renderResultLinks(td, currResult);
             } else {
                 gesso.createElement(tr, "td");
                 gesso.createElement(tr, "td");
@@ -461,86 +413,33 @@ var blinky = {
                 gesso.createElement(tr, "td");
             }
         }
+    }
 
-        return elem;
-    },
-
-    state: {
-        query: {
-            category: "all",
-            view: "panel"
-        },
-        data: null,
-        dataFetchState: null,
-        renderTimestamp: null
-    },
-
-    renderPage: function (state) {
+    renderPage() {
         console.log("Rendering page");
 
-        blinky.state.renderTimestamp = new Date().getTime();
+        this.state.renderTime = new Date().getTime();
 
-        var oldContent = $("#content");
-        var newContent = document.createElement("div");
+        let elem = gesso.createDiv(null, "#content");
 
-        newContent.setAttribute("id", "content");
+        document.title = this.state.data.title;
 
-        document.title = state.data.title;
+        this.renderHeader(elem);
+        this.renderBody(elem);
+        this.renderFooter(elem);
 
-        blinky.createHeader(newContent, state);
-        blinky.createBody(newContent, state);
-        blinky.createFooter(newContent, state);
+        gesso.replaceElement($("#content"), elem);
+    }
 
-        oldContent.parentNode.replaceChild(newContent, oldContent);
-    },
-
-    updateTimestamp: function (request) {
-        var elem = $("#timestamp");
-        var time = new Date().toLocaleString();
-    },
-
-    checkFreshness: function () {
+    checkFreshness() {
         console.log("Checking freshness");
 
-        var failedAttempts = blinky.state.dataFetchState.failedAttempts;
+        let failedAttempts = this.state.dataFetchState.failedAttempts;
 
         if (failedAttempts == 0) {
             $("body").classList.remove("disconnected");
         } else if (failedAttempts >= 10) {
             $("body").classList.add("disconnected");
         }
-    },
-
-    init: function () {
-        window.addEventListener("statechange", function (event) {
-            blinky.renderPage(blinky.state);
-
-            if (blinky.state.query.view === "table") {
-                Sortable.init();
-            }
-        });
-
-        window.addEventListener("load", function (event) {
-            if (window.location.search) {
-                blinky.state.query = gesso.parseQueryString(window.location.search);
-            }
-
-            function handler(data) {
-                blinky.state.data = data;
-                window.dispatchEvent(new Event("statechange"));
-            }
-
-            if (blinky.state.query.view === "table") {
-                gesso.fetch("/data.json", handler)
-            } else {
-                blinky.state.dataFetchState = gesso.fetchPeriodically("/data.json", handler);
-                window.setInterval(blinky.checkFreshness, 60 * 1000);
-            }
-        });
-
-        window.addEventListener("popstate", function (event) {
-            blinky.state.query = event.state;
-            window.dispatchEvent(new Event("statechange"));
-        });
     }
-};
+}

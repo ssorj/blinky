@@ -71,7 +71,7 @@ class TravisJob(HttpJob):
 
         if start_time is not None:
             start_time = _datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ")
-            start_time = _calendar.timegm(start_time.timetuple())
+            start_time = int(round(start_time.timestamp() * 1000))
 
         html_url = "https://travis-ci.org/{}/builds/{}".format(self.repo, data["id"])
         data_url = "{}/builds/{}".format(self.agent.data_url, data["id"])
@@ -80,7 +80,7 @@ class TravisJob(HttpJob):
         result.number = int(data["number"])
         result.status = status
         result.start_time = start_time
-        result.duration = data["duration"]
+        result.duration = int(round(data["duration"] * 1000))
         result.html_url = html_url
         result.data_url = data_url
 

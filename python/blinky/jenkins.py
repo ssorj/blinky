@@ -66,8 +66,8 @@ class JenkinsJob(HttpJob):
         result = JobResult()
         result.number = number
         result.status = status
-        result.start_time = data["timestamp"] / 1000.0
-        result.duration = data["duration"] / 1000.0
+        result.start_time = data["timestamp"]
+        result.duration = data["duration"]
         result.html_url = html_url
         result.data_url = data_url
         result.tests_url = tests_url

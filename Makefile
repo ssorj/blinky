@@ -93,6 +93,10 @@ build/blinky/python/%: python/%
 	@mkdir -p ${@D}
 	cp $< $@
 
+.PHONY: update-gesso
+update-gesso:
+	curl "https://raw.githubusercontent.com/ssorj/gesso/master/gesso.js" -o files/gesso.js
+
 .PHONY: update-%
 update-%:
 	curl "https://raw.githubusercontent.com/ssorj/$*/master/python/$*.py" -o python/$*.py

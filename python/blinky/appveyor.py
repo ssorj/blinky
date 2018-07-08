@@ -66,7 +66,7 @@ class AppveyorJob(HttpJob):
 
         start_time = start_time[:26]
         start_time = _datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S.%f")
-        start_time = _calendar.timegm(start_time.timetuple())
+        start_time = int(round(start_time.timestamp() * 1000))
 
         version = data["version"]
 

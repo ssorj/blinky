@@ -21,8 +21,8 @@
 
 "use strict";
 
-var $ = document.querySelector.bind(document);
-var $$ = document.querySelectorAll.bind(document);
+const $ = document.querySelector.bind(document);
+const $$ = document.querySelectorAll.bind(document);
 
 Element.prototype.$ = function () {
   return this.querySelector.apply(this, arguments);
@@ -32,51 +32,50 @@ Element.prototype.$$ = function () {
   return this.querySelectorAll.apply(this, arguments);
 };
 
-var gesso = {
-    openRequest: function (method, url, handler) {
-        var request = new XMLHttpRequest();
+class Gesso {
+    constructor() {
+        this._minFetchInterval = 500;
+        this._maxFetchInterval = 60 * 1000;
+        this._fetchStates = new Map(); // By path
+    }
+
+    openRequest(method, url, loadHandler) {
+        let request = new XMLHttpRequest();
 
         request.open(method, url);
 
-        if (handler) {
-            request.addEventListener("load", handler);
+        if (loadHandler != null) {
+            request.addEventListener("load", loadHandler);
         }
 
         return request;
-    },
+    }
 
-    minFetchInterval: 500,
-    maxFetchInterval: 60 * 1000,
-    fetchStates: {}, // By path
+    _getFetchState(path) {
+        let state = this._fetchStates[path];
 
-    FetchState: function () {
-        return {
-            currentInterval: null,
-            currentTimeoutId: null,
-            failedAttempts: 0,
-            etag: null,
-            timestamp: null
-        }
-    },
+        if (state == null) {
+            state = {
+                currentInterval: null,
+                currentTimeoutId: null,
+                failedAttempts: 0,
+                etag: null,
+                timestamp: null
+            };
 
-    getFetchState: function (path) {
-        var state = gesso.fetchStates[path];
-
-        if (!state) {
-            state = new gesso.FetchState();
-            gesso.fetchStates[path] = state;
+            this._fetchStates[path] = state;
         }
 
         return state;
-    },
+    }
 
-    fetch: function (path, dataHandler) {
+    fetch(path, dataHandler) {
         console.log("Fetching data from", path);
 
-        var state = gesso.getFetchState(path);
+        let state = this._getFetchState(path);
 
-        function loadHandler(event) {
-            if (event.target.status === 200) {
+        let request = this.openRequest("GET", path, (event) => {
+            if (event.target.status >= 200 && event.target.status < 300) {
                 state.failedAttempts = 0;
                 state.etag = event.target.getResponseHeader("ETag");
 
@@ -86,19 +85,14 @@ var gesso = {
             }
 
             state.timestamp = new Date().getTime();
-        }
+        });
 
-        function errorHandler(event) {
+        request.addEventListener("error", (event) => {
             console.log("Fetch failed");
-
             state.failedAttempts++;
-        }
+        });
 
-        var request = gesso.openRequest("GET", path, loadHandler);
-
-        request.addEventListener("error", errorHandler);
-
-        var etag = state.etag;
+        let etag = state.etag;
 
         if (etag) {
             request.setRequestHeader("If-None-Match", etag);
@@ -107,44 +101,47 @@ var gesso = {
         request.send();
 
         return state;
-    },
+    }
 
-    fetchPeriodically: function (path, dataHandler) {
-        var state = gesso.getFetchState(path);
+    fetchPeriodically(path, dataHandler) {
+        let state = this._getFetchState(path);
 
-        window.clearTimeout(state.currentTimeoutId);
-        state.currentInterval = gesso.minFetchInterval;
+        clearTimeout(state.currentTimeoutId);
+        state.currentInterval = this._minFetchInterval;
 
-        gesso.doFetchPeriodically(path, dataHandler, state);
+        this._doFetchPeriodically(path, dataHandler, state);
 
         return state;
-    },
+    }
 
-    doFetchPeriodically: function (path, dataHandler, state) {
-        if (state.currentInterval >= gesso.maxFetchInterval) {
-            window.setInterval(gesso.fetch, gesso.maxFetchInterval, path, dataHandler);
+    _doFetchPeriodically(path, dataHandler, state) {
+        if (state.currentInterval >= this._maxFetchInterval) {
+            setInterval(() => {
+                this.fetch(path, dataHandler);
+            }, this._maxFetchInterval);
+
             return;
         }
 
-        state.currentTimeoutId = window.setTimeout(gesso.doFetchPeriodically,
-                                                   state.currentInterval,
-                                                   path, dataHandler, state);
+        state.currentTimeoutId = setTimeout(() => {
+            this._doFetchPeriodically(path, dataHandler, state);
+        }, state.currentInterval);
 
-        state.currentInterval = Math.min(state.currentInterval * 2, gesso.maxFetchInterval);
+        state.currentInterval = Math.min(state.currentInterval * 2, this._maxFetchInterval);
 
-        gesso.fetch(path, dataHandler);
-    },
+        this.fetch(path, dataHandler);
+    }
 
-    parseQueryString: function (str) {
+    parseQueryString(str) {
         if (str.startsWith("?")) {
             str = str.slice(1);
         }
 
-        var qvars = str.split(/[&;]/);
-        var obj = {};
+        let qvars = str.split(/[&;]/);
+        let obj = {};
 
-        for (var i = 0; i < qvars.length; i++) {
-            var [name, value] = qvars[i].split("=", 2);
+        for (let i = 0; i < qvars.length; i++) {
+            let [name, value] = qvars[i].split("=", 2);
 
             name = decodeURIComponent(name);
             value = decodeURIComponent(value);
@@ -153,17 +150,17 @@ var gesso = {
         }
 
         return obj;
-    },
+    }
 
-    emitQueryString: function (obj) {
-        var tokens = [];
+    emitQueryString(obj) {
+        let tokens = [];
 
-        for (var name in obj) {
+        for (let name in obj) {
             if (!obj.hasOwnProperty(name)) {
                 continue;
             }
 
-            var value = obj[name];
+            let value = obj[name];
 
             name = decodeURIComponent(name);
             value = decodeURIComponent(value);
@@ -172,45 +169,151 @@ var gesso = {
         }
 
         return tokens.join(";");
-    },
+    }
 
-    createElement: function (parent, tag, text) {
-        var elem = document.createElement(tag);
+    createElement(parent, tag, options) {
+        let elem = document.createElement(tag);
 
-        parent.appendChild(elem);
+        if (parent != null) {
+            parent.appendChild(elem);
+        }
 
-        if (text) {
-            gesso.createText(elem, text);
+        if (options != null) {
+            if (typeof options === "string" || typeof options === "number") {
+                this.createText(elem, options);
+            } else if (typeof options === "object") {
+                if (options.hasOwnProperty("text")) {
+                    let text = options["text"];
+
+                    if (text != null) {
+                        this.createText(elem, text);
+                    }
+
+                    delete options["text"];
+                }
+
+                for (let key of Object.keys(options)) {
+                    elem.setAttribute(key, options[key]);
+                }
+            } else {
+                throw `illegal argument: ${options}`;
+            }
         }
 
         return elem;
-    },
+    }
 
-    createText: function (parent, text) {
-        var node = document.createTextNode(text);
+    createText(parent, text) {
+        let node = document.createTextNode(text);
 
-        parent.appendChild(node);
+        if (parent != null) {
+            parent.appendChild(node);
+        }
 
         return node;
-    },
+    }
 
-    createDiv: function (parent, clazz, text) {
-        var elem = gesso.createElement(parent, "div", text);
-
-        if (clazz) {
-            elem.setAttribute("class", clazz);
+    _setSelector(elem, selector) {
+        if (selector == null) {
+            return;
         }
 
+        if (selector.startsWith("#")) {
+            elem.setAttribute("id", selector.slice(1));
+        } else {
+            elem.setAttribute("class", selector);
+        }
+    }
+
+    createDiv(parent, selector, options) {
+        let elem = this.createElement(parent, "div", options);
+
+        this._setSelector(elem, selector);
+
         return elem;
-    },
+    }
 
-    createLink: function (parent, href, text) {
-        var elem = gesso.createElement(parent, "a", text);
+    createSpan(parent, selector, options) {
+        let elem = this.createElement(parent, "span", options);
 
-        if (href) {
+        this._setSelector(elem, selector);
+
+        return elem;
+    }
+
+    createLink(parent, href, options) {
+        let elem = this.createElement(parent, "a", options);
+
+        if (href != null) {
             elem.setAttribute("href", href);
         }
 
         return elem;
+    }
+
+    createTable(parent, headings, rows, options) {
+        let elem = this.createElement(parent, "table", options);
+        let thead = this.createElement(elem, "thead");
+        let tbody = this.createElement(elem, "tbody");
+
+        if (headings) {
+            let tr = this.createElement(thead, "tr");
+
+            for (let heading of headings) {
+                this.createElement(tr, "th", heading);
+            }
+        }
+
+        for (let row of rows) {
+            let tr = this.createElement(tbody, "tr");
+
+            for (let cell of row) {
+                this.createElement(tr, "td", cell);
+            }
+        }
+
+        return elem;
+    }
+
+    replaceElement(oldElement, newElement) {
+        oldElement.parentNode.replaceChild(newElement, oldElement);
+    }
+
+    formatDuration(millis, suffixes) {
+        if (millis == null) {
+            return "-";
+        }
+
+        if (suffixes == null) {
+            suffixes = [
+                " years",
+                " weeks",
+                " days",
+                " hours",
+                " minutes",
+                " seconds",
+                " millis",
+            ];
+        }
+
+        let seconds = Math.round(millis / 1000);
+        let minutes = Math.round(millis / 60 / 1000);
+        let hours = Math.round(millis / 3600 / 1000);
+        let days = Math.round(millis / 86400 / 1000);
+        let weeks = Math.round(millis / 432000 / 1000);
+        let years = Math.round(millis / 31536000 / 1000);
+
+        if (years > 1)   return `${years}${suffixes[0]}`;
+        if (weeks > 1)   return `${weeks}${suffixes[1]}`;
+        if (days > 1)    return `${days}${suffixes[2]}`;
+        if (hours > 1)   return `${hours}${suffixes[3]}`;
+        if (minutes > 1) return `${minutes}${suffixes[4]}`;
+        if (seconds > 1) return `${seconds}${suffixes[5]}`;
+
+        return `${Math.round(millis)}${suffixes[6]}`;
+    }
+
+    formatDurationBrief(millis) {
+        return this.formatDuration(millis, ["y", "w", "d", "h", "m", "s", "ms"]);
     }
 }

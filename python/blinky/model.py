@@ -57,17 +57,13 @@ class Model:
         return _pencil.format_repr(self)
 
     def render_data(self):
-        data = dict()
-
-        data["title"] = self.title
-
         if self.update_time is None:
             raise Exception("The model isn't updated yet")
 
-        time = self.update_time.timetuple()
-        time = _time.mktime(time) + 1e-6 * self.update_time.microsecond
-
-        data["update_time"] = time
+        data = {
+            "title": self.title,
+            "update_time": int(round(self.update_time.timestamp() * 1000)),
+        }
 
         categories_data = data["categories"] = dict()
         groups_data = data["groups"] = dict()
@@ -336,8 +332,8 @@ class JobResult:
     def __init__(self):
         self.number = None      # Result sequence number
         self.status = None      # Status string (PASSED, FAILED, [other])
-        self.start_time = None  # Start time in seconds
-        self.duration = None    # Duration in seconds
+        self.start_time = None  # Start time in milliseconds
+        self.duration = None    # Duration in milliseconds
         self.html_url = None    # World Wide Web URL
         self.data_url = None    # Usually a JSON URL
         self.tests_url = None   # Test results
