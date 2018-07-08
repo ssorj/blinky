@@ -296,6 +296,14 @@ class Gesso {
             ];
         }
 
+        let prefix = "";
+
+        if (millis < 0) {
+            prefix = "-";
+        }
+
+        millis = Math.abs(millis);
+
         let seconds = Math.round(millis / 1000);
         let minutes = Math.round(millis / 60 / 1000);
         let hours = Math.round(millis / 3600 / 1000);
@@ -309,8 +317,9 @@ class Gesso {
         if (hours > 1)   return `${hours}${suffixes[3]}`;
         if (minutes > 1) return `${minutes}${suffixes[4]}`;
         if (seconds > 1) return `${seconds}${suffixes[5]}`;
+        if (millis == 0) return "0";
 
-        return `${Math.round(millis)}${suffixes[6]}`;
+        return `${prefix}${Math.round(millis)}${suffixes[6]}`;
     }
 
     formatDurationBrief(millis) {
