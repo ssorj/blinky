@@ -311,12 +311,12 @@ class Gesso {
         let weeks = Math.round(millis / 432000 / 1000);
         let years = Math.round(millis / 31536000 / 1000);
 
-        if (years > 1)   return `${years}${suffixes[0]}`;
-        if (weeks > 1)   return `${weeks}${suffixes[1]}`;
-        if (days > 1)    return `${days}${suffixes[2]}`;
-        if (hours > 1)   return `${hours}${suffixes[3]}`;
-        if (minutes > 1) return `${minutes}${suffixes[4]}`;
-        if (seconds > 1) return `${seconds}${suffixes[5]}`;
+        if (years > 1)   return `${prefix}${years}${suffixes[0]}`;
+        if (weeks > 1)   return `${prefix}${weeks}${suffixes[1]}`;
+        if (days > 1)    return `${prefix}${days}${suffixes[2]}`;
+        if (hours > 1)   return `${prefix}${hours}${suffixes[3]}`;
+        if (minutes > 1) return `${prefix}${minutes}${suffixes[4]}`;
+        if (seconds > 1) return `${prefix}${seconds}${suffixes[5]}`;
         if (millis == 0) return "0";
 
         return `${prefix}${Math.round(millis)}${suffixes[6]}`;
