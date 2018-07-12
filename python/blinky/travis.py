@@ -20,10 +20,9 @@
 from .model import *
 
 import calendar as _calendar
+import datetime as _datetime
 import logging as _logging
 import requests as _requests
-
-from datetime import datetime as _datetime
 
 _log = _logging.getLogger("blinky.travis")
 
@@ -68,10 +67,15 @@ class TravisJob(HttpJob):
         status = _status_mapping.get(status, status)
 
         start_time = data["started_at"]
+        duration = data["duration"]
 
         if start_time is not None:
-            start_time = _datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ")
+            start_time = _datetime.datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ")
+            start_time = start_time.replace(tzinfo=_datetime.timezone.utc)
             start_time = int(round(start_time.timestamp() * 1000))
+
+        if duration is not None:
+            duration = int(round(duration * 1000))
 
         html_url = "https://travis-ci.org/{}/builds/{}".format(self.repo, data["id"])
         data_url = "{}/builds/{}".format(self.agent.data_url, data["id"])
@@ -80,7 +84,7 @@ class TravisJob(HttpJob):
         result.number = int(data["number"])
         result.status = status
         result.start_time = start_time
-        result.duration = int(round(data["duration"] * 1000))
+        result.duration = duration
         result.html_url = html_url
         result.data_url = data_url
 

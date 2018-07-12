@@ -20,10 +20,9 @@
 from .model import *
 
 import calendar as _calendar
+import datetime as _datetime
 import logging as _logging
 import requests as _requests
-
-from datetime import datetime as _datetime
 
 _log = _logging.getLogger("blinky.appveyor")
 
@@ -65,7 +64,8 @@ class AppveyorJob(HttpJob):
             start_time = data["created"]
 
         start_time = start_time[:26]
-        start_time = _datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S.%f")
+        start_time = _datetime.datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S.%f")
+        start_time = start_time.replace(tzinfo=_datetime.timezone.utc)
         start_time = int(round(start_time.timestamp() * 1000))
 
         version = data["version"]
