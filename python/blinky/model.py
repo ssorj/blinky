@@ -101,7 +101,7 @@ class Model:
             if future.exception() is not None:
                 _log.error("Failure updating: {}".format(future.exception()))
 
-        self.update_time = _datetime.datetime.utcnow()
+        self.update_time = _datetime.datetime.now(_datetime.timezone.utc)
 
         data = self.render_data()
 
@@ -373,7 +373,7 @@ class HttpJob(Job):
         try:
             _log.debug("Fetching data from {}".format(url))
 
-            response = session.get(url, headers=headers, timeout=10)
+            response = session.get(url, headers=headers, timeout=5)
         except _requests.exceptions.ConnectionError:
             raise
         except _requests.exceptions.RequestException as e:
