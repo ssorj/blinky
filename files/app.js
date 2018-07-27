@@ -95,8 +95,7 @@ class Blinky {
     renderFooter(parent) {
         let elem = gesso.createDiv(parent, "footer");
 
-        let offset = new Date().getTimezoneOffset() * 60 * 1000;
-        let time = new Date((this.state.data.update_time - offset));
+        let time = new Date((this.state.data.update_time));
 
         let status = gesso.createSpan(elem, "#timestamp", time.toLocaleString());
 
