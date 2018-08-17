@@ -23,7 +23,6 @@ import datetime as _datetime
 import json as _json
 import hashlib as _hashlib
 import logging as _logging
-import pencil as _pencil
 import requests as _requests
 import sched as _sched
 import threading as _threading
@@ -54,7 +53,7 @@ class Model:
         self.json_digest = None
 
     def __repr__(self):
-        return _pencil.format_repr(self)
+        return _format_repr(self)
 
     def render_data(self):
         if self.update_time is None:
@@ -158,7 +157,7 @@ class _ModelObject:
         collection.append(self)
 
     def __repr__(self):
-        return _pencil.format_repr(self, self.id, self.name)
+        return _format_repr(self, self.id, self.name)
 
     def render_data(self):
         data = dict()
@@ -402,3 +401,8 @@ class HttpJob(Job):
                 _log.warn("Response text:      {}".format(response.text))
             else:
                 _log.debug("Response text:      {}".format(response.text))
+
+def _format_repr(obj, *args):
+    cls = obj.__class__.__name__
+    strings = [str(x) for x in args]
+    return "{}({})".format(cls, ",".join(strings))
