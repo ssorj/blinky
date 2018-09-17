@@ -25,9 +25,9 @@ INSTALLED_BLINKY_HOME = ${PREFIX}/share/blinky
 
 VIRTUALENV_ENABLED := 1
 
-export BLINKY_HOME = ${PWD}/build/blinky
-export PATH := ${PWD}/build/bin:${PATH}
-export PYTHONPATH := ${BLINKY_HOME}/python:${PWD}/python:${PYTHONPATH}
+export BLINKY_HOME = ${CURDIR}/build/blinky
+export PATH := ${CURDIR}/build/bin:${PATH}
+export PYTHONPATH := ${BLINKY_HOME}/python:${CURDIR}/python:${PYTHONPATH}
 
 VERSION := $(shell cat VERSION.txt)
 
