@@ -100,7 +100,7 @@ class Blinky {
         let status = gesso.createSpan(elem, "#timestamp", time.toLocaleString());
 
         gesso.createText(elem, " \u2022 ");
-        gesso.createLink(elem, "pretty-data.html?url=/data.json", {text: "Data", target: "blinky"});
+        gesso.createLink(elem, "pretty-data.html?url=/data.json", "Data");
     }
 
     renderViewSelector(parent) {
@@ -164,19 +164,19 @@ class Blinky {
             text = "-";
         }
 
-        return gesso.createLink(parent, obj.html_url, {text: text, target: "blinky"});
+        return gesso.createLink(parent, obj.html_url, text);
     }
 
     renderResultLinks(parent, result) {
         let data_url = "pretty-data.html?url=" + encodeURIComponent(result.data_url);
 
-        gesso.createLink(parent, data_url, {text: "Data", target: "blinky"});
+        gesso.createLink(parent, data_url, "Data");
         gesso.createText(parent, ", ");
 
         if (result.tests_url == null) {
             gesso.createSpan(parent, "disabled", "Tests");
         } else {
-            gesso.createLink(parent, result.tests_url, {text: "Tests", target: "blinky"});
+            gesso.createLink(parent, result.tests_url, "Tests");
         }
     }
 
@@ -220,7 +220,7 @@ class Blinky {
         let currResult = job.current_result;
         let prevResult = job.previous_result;
 
-        let summary = gesso.createLink(elem, job.html_url, {"class": "job-summary", target: "blinky"});
+        let summary = gesso.createLink(elem, job.html_url, {"class": "job-summary"});
 
         gesso.createDiv(summary, "summary-component", component.name);
 

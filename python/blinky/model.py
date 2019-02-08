@@ -94,7 +94,7 @@ class Model:
     def update(self):
         _log.info("Updating {}".format(self))
 
-        futures = [self.executor.submit(x.update) for x in self.agents]
+        futures = [self.executor.submit(x.update) for x in self.agents if x.enabled]
 
         for future in _futures.as_completed(futures):
             if future.exception() is not None:
@@ -222,6 +222,7 @@ class Agent(_ModelObject):
 
         self.html_url = None
         self.data_url = None
+        self.enabled = True
 
         self.jobs = list()
 
