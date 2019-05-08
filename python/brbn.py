@@ -193,7 +193,7 @@ class Application:
             self._add_files(brbn_files_dir)
 
         if self.home is not None:
-            app_files_dir = _os.path.join(self.home, "files")
+            app_files_dir = _os.path.join(self.home, "static")
             self._add_files(app_files_dir)
 
         for path, resource in sorted(self.resources.items()):

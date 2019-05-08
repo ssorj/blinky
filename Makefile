@@ -20,12 +20,11 @@
 .NOTPARALLEL:
 
 DESTDIR := ""
-PREFIX := /usr/local
-INSTALLED_BLINKY_HOME = ${PREFIX}/share/blinky
+INSTALL_DIR := ${HOME}/.local/opt/bodega
 
 VIRTUALENV_ENABLED := 1
 
-export BLINKY_HOME = ${CURDIR}/build/blinky
+export BLINKY_HOME = ${CURDIR}/build
 export PATH := ${CURDIR}/build/bin:${PATH}
 export PYTHONPATH := ${BLINKY_HOME}/python:${CURDIR}/python:${PYTHONPATH}
 
@@ -36,9 +35,6 @@ BIN_TARGETS := ${BIN_SOURCES:%.in=build/%}
 
 MISC_SOURCES := $(shell find misc -type f -name \*.in)
 MISC_TARGETS := ${MISC_SOURCES:%.in=build/%}
-
-PYTHON_SOURCES := $(shell find python -type f -name \*.py)
-PYTHON_TARGETS := ${PYTHON_SOURCES:%=build/blinky/%} ${PYTHON_SOURCES:%.in=build/blinky/%}
 
 .PHONY: default
 default: build
@@ -58,15 +54,16 @@ clean:
 	rm -rf build
 
 .PHONY: build
-build: ${BIN_TARGETS} ${MISC_TARGETS} ${PYTHON_TARGETS} build/prefix.txt
-	ln -sfT ../../files build/blinky/files
+build: ${BIN_TARGETS} ${MISC_TARGETS} build/install-dir.txt
+	ln -sfT ../python build/python
+	ln -sfT ../static build/static
 
 .PHONY: install
 install: build
-	scripts/install-files build/bin ${DESTDIR}$$(cat build/prefix.txt)/bin
-	scripts/install-files build/blinky ${DESTDIR}$$(cat build/prefix.txt)/share/blinky
-	scripts/install-files files ${DESTDIR}$$(cat build/prefix.txt)/share/blinky/files
-	scripts/install-files -n \*.service build/misc ${DESTDIR}$$(cat build/prefix.txt)/lib/systemd/system
+	scripts/install-files build/bin ${DESTDIR}$$(cat build/install-dir.txt)/bin
+	scripts/install-files python ${DESTDIR}$$(cat build/install-dir.txt)/python
+	scripts/install-files python/blinky ${DESTDIR}$$(cat build/install-dir.txt)/python/blinky
+	scripts/install-files static ${DESTDIR}$$(cat build/install-dir.txt)/static
 
 .PHONY: test
 test: build
@@ -76,22 +73,30 @@ test: build
 run: build
 	blinky
 
-build/prefix.txt:
-	echo ${PREFIX} > build/prefix.txt
+.PHONY: build-image
+build-image:
+	sudo docker build -t ssorj/blinky .
+
+.PHONY: test-image
+test-image:
+	sudo docker run --rm --user 9999 -it ssorj/blinky /app/bin/blinky-test
+
+.PHONY: run-image
+run-image:
+	sudo docker run --rm --user 9999 -p 8080:8080 ssorj/blinky
+
+.PHONY: debug-image
+debug-image:
+	sudo docker run --rm --user 9999 -p 8080:8080 -it ssorj/blinky /bin/bash
+
+build/install-dir.txt:
+	echo ${INSTALL_DIR} > build/install-dir.txt
 
 build/bin/%: bin/%.in
-	scripts/configure-file -a blinky_home=${INSTALLED_BLINKY_HOME} $< $@
+	scripts/configure-file -a blinky_home=${INSTALL_DIR} $< $@
 
 build/misc/%: misc/%.in
-	scripts/configure-file -a blinky_home=${INSTALLED_BLINKY_HOME} $< $@
-
-build/blinky/python/blinky/%: python/blinky/% python/blinky/model.py python/brbn.py python/pencil.py python/plano.py python/spindle.py
-	@mkdir -p ${@D}
-	cp $< $@
-
-build/blinky/python/%: python/%
-	@mkdir -p ${@D}
-	cp $< $@
+	scripts/configure-file -a blinky_home=${INSTALL_DIR} $< $@
 
 .PHONY: update-gesso
 update-gesso:
