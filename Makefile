@@ -20,7 +20,8 @@
 .NOTPARALLEL:
 
 DESTDIR := ""
-INSTALL_DIR := ${HOME}/.local/opt/bodega
+INSTALL_DIR := ${HOME}/.local/opt/blinky
+IMAGE_NAME := quay.io/ssorj/blinky
 
 VIRTUALENV_ENABLED := 1
 
@@ -75,19 +76,23 @@ run: build
 
 .PHONY: build-image
 build-image:
-	sudo docker build -t ssorj/blinky .
+	podman build -qt ${IMAGE_NAME} .
 
 .PHONY: test-image
 test-image:
-	sudo docker run --rm --user 9999 -it ssorj/blinky /app/bin/blinky-test
+	podman run --rm -it ${IMAGE_NAME} /app/bin/blinky-test
 
 .PHONY: run-image
 run-image:
-	sudo docker run --rm --user 9999 -p 8080:8080 ssorj/blinky
+	podman run --rm -p 8080:8080 ${IMAGE_NAME}
 
 .PHONY: debug-image
 debug-image:
-	sudo docker run --rm --user 9999 -p 8080:8080 -it ssorj/blinky /bin/bash
+	podman run --rm -p 8080:8080 -it ${IMAGE_NAME} /bin/bash
+
+.PHONY: push-image
+push-image:
+	podman push -q ${IMAGE_NAME}
 
 build/install-dir.txt:
 	echo ${INSTALL_DIR} > build/install-dir.txt

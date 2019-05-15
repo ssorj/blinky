@@ -17,21 +17,25 @@
 # under the License.
 #
 
-FROM registry.fedoraproject.org/fedora-minimal
+FROM registry.fedoraproject.org/fedora-minimal AS build
 
-RUN microdnf --nodocs install findutils make python2 python3-requests python3-tornado && microdnf clean all
+RUN microdnf --nodocs install findutils make python2 python3 && microdnf clean all
 
-COPY . /app/src
+COPY . /src
+
+RUN mkdir /app
 ENV HOME=/app
 
-WORKDIR /app/src
+WORKDIR /src
 RUN make clean install INSTALL_DIR=/app
 
-RUN chown -R 1001:0 /app && chmod -R 775 /app
-USER 1001
+FROM registry.fedoraproject.org/fedora-minimal
+
+RUN microdnf --nodocs install python3-certifi python3-requests python3-tornado && microdnf clean all
 
 WORKDIR /app
-ENV PATH=/app/bin:$PATH
+ENV HOME=/app
+ENV PATH=$HOME/bin:$PATH
 
 EXPOSE 8080
 
