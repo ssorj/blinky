@@ -238,6 +238,10 @@ class Blinky {
 
         summary.setAttribute("href", currResult.html_url);
 
+        if (currResult.logs_url != null) {
+            summary.setAttribute("href", currResult.logs_url);
+        }
+
         if (currResult.tests_url != null) {
             summary.setAttribute("href", currResult.tests_url);
         }

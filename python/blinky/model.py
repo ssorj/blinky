@@ -337,6 +337,7 @@ class JobResult:
         self.html_url = None    # World Wide Web URL
         self.data_url = None    # Usually a JSON URL
         self.tests_url = None   # Test results
+        self.logs_url = None    # Log output
 
     def render_data(self):
         data = dict()
@@ -348,6 +349,7 @@ class JobResult:
         data["html_url"] = self.html_url
         data["data_url"] = self.data_url
         data["tests_url"] = self.tests_url
+        data["logs_url"] = self.logs_url
 
         return data
 

@@ -70,6 +70,7 @@ class JenkinsJob(HttpJob):
         result.html_url = html_url
         result.data_url = data_url
         result.tests_url = tests_url
+        result.logs_url = f"{html_url}/console"
 
         return result
 
