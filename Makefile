@@ -76,11 +76,7 @@ run: build
 
 .PHONY: build-image
 build-image:
-	podman build -qt ${IMAGE_NAME} .
-
-.PHONY: test-image
-test-image:
-	podman run --rm -it ${IMAGE_NAME} /app/bin/blinky-test
+	podman build -t ${IMAGE_NAME} .
 
 .PHONY: run-image
 run-image:
@@ -90,6 +86,7 @@ run-image:
 debug-image:
 	podman run --rm -p 8080:8080 -it ${IMAGE_NAME} /bin/bash
 
+# Prerequisite: podman login quay.io
 .PHONY: push-image
 push-image:
 	podman push -q ${IMAGE_NAME}

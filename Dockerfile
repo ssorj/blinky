@@ -19,7 +19,7 @@
 
 FROM registry.fedoraproject.org/fedora-minimal AS build
 
-RUN microdnf --nodocs install findutils make python2 python3 && microdnf clean all
+RUN microdnf install findutils make python3 && microdnf clean all
 
 COPY . /src
 
@@ -27,11 +27,14 @@ RUN mkdir /app
 ENV HOME=/app
 
 WORKDIR /src
+
 RUN make clean install INSTALL_DIR=/app
 
 FROM registry.fedoraproject.org/fedora-minimal
 
-RUN microdnf --nodocs install python3-certifi python3-requests python3-tornado && microdnf clean all
+RUN microdnf install python3-certifi python3-requests python3-tornado && microdnf clean all
+
+COPY --from=build /app /app
 
 WORKDIR /app
 ENV HOME=/app
