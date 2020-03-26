@@ -6,9 +6,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -50,7 +50,7 @@ windows = Environment(model, "Windows")
 
 asf_jenkins = JenkinsAgent(model, "ASF Jenkins", "https://builds.apache.org")
 travis = TravisAgent(model, "Travis CI")
-appveyor = AppveyorAgent(model, "Appveyor")
+appveyor = AppVeyorAgent(model, "AppVeyor")
 
 # Categories
 
@@ -62,7 +62,7 @@ group = Group(model, default, "Qpid JMS")
 
 JenkinsJob (model, group, qpid_jms,     ubuntu_lts,     asf_jenkins,      "ASF Jenkins",             "Qpid-JMS-Test-JDK8")
 TravisJob  (model, group, qpid_jms,     ubuntu_12_lts,  travis,           "Travis CI",               "apache/qpid-jms", "master")
-AppveyorJob(model, group, qpid_jms,     windows,        appveyor,         "Appveyor",                "stumped2", "qpid-jms", "master")
+AppVeyorJob(model, group, qpid_jms,     windows,        appveyor,         "AppVeyor",                "stumped2", "qpid-jms", "master")
 JenkinsJob (model, group, qpid_jms,     ubuntu_lts,     asf_jenkins,      "Regression",              "Qpid-JMS-Checks")
 JenkinsJob (model, group, qpid_jms,     ubuntu_lts,     asf_jenkins,      "Deploy",                  "Qpid-JMS-Deploy")
 
@@ -70,10 +70,10 @@ group = Group(model, default, "Qpid Proton")
 
 JenkinsJob (model, group, proton_c,     ubuntu_lts,     asf_jenkins,      "ASF Jenkins",             "Qpid-proton-c")
 TravisJob  (model, group, proton_c,     ubuntu_12_lts,  travis,           "Travis CI",               "apache/qpid-proton", "master")
-AppveyorJob(model, group, proton_c,     windows,        appveyor,         "Appveyor",                "ke4qqq", "qpid-proton", "master")
+AppVeyorJob(model, group, proton_c,     windows,        appveyor,         "AppVeyor",                "ke4qqq", "qpid-proton", "master")
 JenkinsJob (model, group, proton_j,     ubuntu_lts,     asf_jenkins,      "ASF Jenkins",             "Qpid-proton-j")
 TravisJob  (model, group, proton_j,     ubuntu_12_lts,  travis,           "Travis CI",               "apache/qpid-proton-j", "master")
-AppveyorJob(model, group, proton_j,     windows,        appveyor,         "Appveyor",                "ApacheSoftwareFoundation", "qpid-proton-j", "master")
+AppVeyorJob(model, group, proton_j,     windows,        appveyor,         "AppVeyor",                "ApacheSoftwareFoundation", "qpid-proton-j", "master")
 JenkinsJob (model, group, proton_j,     ubuntu_lts,     asf_jenkins,      "Regression",              "Qpid-proton-j-Checks")
 JenkinsJob (model, group, proton_j,     ubuntu_lts,     asf_jenkins,      "Deploy",                  "Qpid-proton-j-Deploy")
 

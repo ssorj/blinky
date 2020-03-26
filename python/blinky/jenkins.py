@@ -35,18 +35,17 @@ class JenkinsAgent(HttpAgent):
         super().__init__(model, name)
 
         self.html_url = url
-        self.data_url = "{}/api/json".format(self.html_url)
+        self.data_url = f"{self.html_url}/api/json"
 
 class JenkinsJob(HttpJob):
-    def __init__(self, model, group, component, environment, agent, name,
-                 slug):
+    def __init__(self, model, group, component, environment, agent, name, slug):
         super().__init__(model, group, component, environment, agent, name)
 
         self.slug = slug
 
-        self.html_url = "{}/job/{}".format(self.agent.html_url, self.slug)
-        self.data_url = "{}/api/json?{}".format(self.html_url, _rest_api_qs)
-        self.fetch_url = "{}/lastBuild/api/json?{}".format(self.html_url, _rest_api_qs)
+        self.html_url = f"{self.agent.html_url}/job/{self.slug}"
+        self.data_url = f"{self.html_url}/api/json?{_rest_api_qs}"
+        self.fetch_url = f"{self.html_url}/lastBuild/api/json?{_rest_api_qs}"
 
     def convert_result(self, data):
         number = data["number"]
@@ -54,13 +53,13 @@ class JenkinsJob(HttpJob):
         status = data["result"]
         status = _status_mapping.get(status, status)
 
-        html_url = "{}/{}".format(self.html_url, number)
-        data_url = "{}/api/json?{}".format(html_url, _rest_api_qs)
+        html_url = f"{self.html_url}/{number}"
+        data_url = f"{html_url}/api/json?{_rest_api_qs}"
         tests_url = None
 
         for action in data["actions"]:
             if action.get("_class") == "hudson.tasks.junit.TestResultAction":
-                tests_url = "{}/testReport".format(html_url)
+                tests_url = f"{html_url}/testReport"
                 break
 
         result = JobResult()

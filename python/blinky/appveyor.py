@@ -31,26 +31,23 @@ _status_mapping = {
     "failed": FAILED,
 }
 
-class AppveyorAgent(HttpAgent):
+class AppVeyorAgent(HttpAgent):
     def __init__(self, model, name):
         super().__init__(model, name)
 
         self.html_url = "https://ci.appveyor.com"
         self.data_url = "https://ci.appveyor.com"
 
-class AppveyorJob(HttpJob):
-    def __init__(self, model, group, component, environment, agent, name,
-                 account, project, branch):
+class AppVeyorJob(HttpJob):
+    def __init__(self, model, group, component, environment, agent, name, account, project, branch):
         super().__init__(model, group, component, environment, agent, name)
 
         self.account = account
         self.project = project
         self.branch = branch
 
-        self.html_url = "{}/project/{}/{}" \
-            .format(self.agent.html_url, self.account, self.project)
-        self.data_url = "{}/api/projects/{}/{}/branch/{}" \
-            .format(self.agent.data_url, self.account, self.project, self.branch)
+        self.html_url = f"{self.agent.html_url}/project/{self.account}/{self.project}"
+        self.data_url = f"{self.agent.html_url}/api/projects/{self.account}/{self.project}/branch/{self.branch}"
 
     def convert_result(self, data):
         data = data["build"]
@@ -63,16 +60,12 @@ class AppveyorJob(HttpJob):
         if start_time is None:
             start_time = data["created"]
 
-        start_time = start_time[:26]
-        start_time = _datetime.datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S.%f")
-        start_time = start_time.replace(tzinfo=_datetime.timezone.utc)
-        start_time = int(round(start_time.timestamp() * 1000))
+        start_time = parse_timestamp(start_time[:26], "%Y-%m-%dT%H:%M:%S.%f")
 
         version = data["version"]
 
-        html_url = "{}/build/{}".format(self.html_url, version)
-        data_url = "{}/api/projects/{}/{}/build/{}" \
-            .format(self.agent.data_url, self.account, self.project, version)
+        html_url = f"{self.html_url}/build/{version}"
+        data_url = f"{self.agent.data_url}/api/projects/{self.account}/{self.project}/build/{version}"
         tests_url = None
 
         try:
@@ -81,7 +74,7 @@ class AppveyorJob(HttpJob):
             tests = 0
 
         if tests > 0:
-            tests_url = "{}/build/tests".format(self.html_url)
+            tests_url = f"{self.html_url}/build/tests"
 
         result = JobResult()
         result.number = data["buildNumber"]

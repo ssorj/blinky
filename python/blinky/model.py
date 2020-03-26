@@ -403,6 +403,15 @@ class HttpJob(Job):
             else:
                 _log.debug("Response text:      {}".format(response.text))
 
+def parse_timestamp(timestamp, format="%Y-%m-%dT%H:%M:%SZ"):
+    if timestamp is None:
+        return None
+
+    dt = _datetime.datetime.strptime(timestamp, format)
+    dt = dt.replace(tzinfo=_datetime.timezone.utc)
+
+    return int(round(dt.timestamp() * 1000))
+
 def _format_repr(obj, *args):
     cls = obj.__class__.__name__
     strings = [str(x) for x in args]

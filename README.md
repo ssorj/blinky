@@ -10,11 +10,12 @@ An *environment* is a context for running a component, such as an OS
 or language runtime.
 
 An *agent* represents a server or service that runs jobs.  It comes in
-various types, `JenkinsAgent`, `TravisAgent`, `AppveyorAgent`.
+various types: `JenkinsAgent`, `TravisAgent`, `AppVeyorAgent`, or
+`GitHubAgent`.
 
 A *job* is a channel for repeatedly executing a test of a particular
 component in a particular environment.  Like an agent, a job has
-types, `JenkinsJob`, `TravisJob`, `AppveyorJob`.
+types: `JenkinsJob`, `TravisJob`, `AppVeyorJob`, or `GitHubJob`.
 
 Jobs are organized into named *groups*.  These are used for
 presentation.

@@ -23,62 +23,63 @@ import calendar as _calendar
 import datetime as _datetime
 import logging as _logging
 import requests as _requests
+import urllib.parse as _parse
 
-_log = _logging.getLogger("blinky.travis")
+_log = _logging.getLogger("blinky.github")
 
 _status_mapping = {
-    "passed": PASSED,
-    "failed": FAILED,
-    "errored": FAILED,
+    "success": PASSED,
+    "failure": FAILED,
 }
 
-class TravisAgent(HttpAgent):
+class GitHubAgent(HttpAgent):
     def __init__(self, model, name):
         super().__init__(model, name)
 
-        self.html_url = "https://travis-ci.org"
-        self.data_url = "https://api.travis-ci.org"
+        self.html_url = "https://github.com"
+        self.data_url = "https://api.github.com"
 
-class TravisJob(HttpJob):
-    def __init__(self, model, group, component, environment, agent, name, repo, branch):
+class GitHubJob(HttpJob):
+    def __init__(self, model, group, component, environment, agent, name, repo, branch, workflow_name, workflow_id):
         super().__init__(model, group, component, environment, agent, name)
 
         self.repo = repo
         self.branch = branch
+        self.workflow_name = workflow_name
+        self.workflow_id = workflow_id
 
-        self.html_url = f"{self.agent.html_url}/{self.repo}/branches"
-        self.data_url = f"{self.agent.data_url}/repos/{self.repo}/branches/{self.branch}"
+        escaped_name = _parse.quote(self.workflow_name)
 
-    def fetch_data(self, session):
-        headers = {
-            "User-Agent": "Blinky/0.1",
-            "Accept": "application/vnd.travis-ci.2+json",
-        }
+        if " " in self.workflow_name:
+            escaped_name = f"\"{escaped_name}\""
 
-        return super().fetch_data(session, headers)
+        self.html_url = f"{self.agent.html_url}/{self.repo}/actions?query=workflow%3A{escaped_name}"
+        self.data_url = f"{self.agent.data_url}/repos/{self.repo}/actions/workflows/{self.workflow_id}/runs?branch={self.branch}"
 
     def convert_result(self, data):
-        data = data["branch"]
-        build_id = data["id"]
+        try:
+            data = data["workflow_runs"][0]
+        except IndexError:
+            raise Exception("No data!")
 
-        status = data["state"]
+        status = data["conclusion"]
         status = _status_mapping.get(status, status)
 
-        start_time = parse_timestamp(data["started_at"])
-        duration = data["duration"]
+        start_time = parse_timestamp(data["created_at"])
 
-        if duration is not None:
-            duration = int(round(duration * 1000))
+        end_time = None
+        duration = None
 
-        html_url = f"https://travis-ci.org/{self.repo}/builds/{build_id}"
-        data_url = f"{self.agent.data_url}/builds/{build_id}"
+        if data["status"] == "completed":
+            end_time = parse_timestamp(data["updated_at"])
+            duration = end_time - start_time
 
         result = JobResult()
-        result.number = int(data["number"])
+        result.number = data["run_number"]
         result.status = status
         result.start_time = start_time
         result.duration = duration
-        result.html_url = html_url
-        result.data_url = data_url
+        result.html_url = data["html_url"]
+        result.data_url = data["url"]
 
         return result
