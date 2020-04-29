@@ -21,57 +21,54 @@ from .model import *
 
 import logging as _logging
 
-_log = _logging.getLogger("blinky.travis")
+_log = _logging.getLogger("blinky.circle")
 
 _status_mapping = {
-    "passed": PASSED,
+    "success": PASSED,
     "failed": FAILED,
-    "errored": FAILED,
 }
 
-class TravisAgent(HttpAgent):
+class CircleAgent(HttpAgent):
     def __init__(self, model, name):
         super().__init__(model, name)
 
-        self.html_url = "https://travis-ci.org"
-        self.data_url = "https://api.travis-ci.org"
+        self.html_url = "https://circleci.com"
+        self.data_url = "https://circleci.com"
 
-class TravisJob(HttpJob):
+class CircleJob(HttpJob):
     def __init__(self, model, group, component, environment, agent, name, repo, branch):
         super().__init__(model, group, component, environment, agent, name)
 
         self.repo = repo
         self.branch = branch
 
-        self.html_url = f"{self.agent.html_url}/{self.repo}/branches"
-        self.data_url = f"{self.agent.data_url}/repos/{self.repo}/branches/{self.branch}"
-
-    def fetch_data(self, session):
-        headers = {
-            "User-Agent": "Blinky/0.1",
-            "Accept": "application/vnd.travis-ci.2+json",
-        }
-
-        return super().fetch_data(session, headers)
+        self.html_url = f"{self.agent.html_url}/{self.repo}/tree/{self.branch}"
+        self.data_url = f"{self.agent.data_url}/api/v1.1/project/{self.repo}/tree/{self.branch}?limit=1&shallow=1"
 
     def convert_result(self, data):
-        data = data["branch"]
-        build_id = data["id"]
+        data = data[0]
+        number = data["build_num"]
 
-        status = data["state"]
+        status = data["status"]
         status = _status_mapping.get(status, status)
 
-        start_time = parse_timestamp(data["started_at"])
-        duration = data["duration"]
+        start_time = data["start_time"]
 
-        if duration is not None:
-            duration = int(round(duration * 1000))
+        if start_time is None:
+            start_time = data["queued_at"]
 
-        html_url = f"https://travis-ci.org/{self.repo}/builds/{build_id}"
-        data_url = f"{self.agent.data_url}/builds/{build_id}"
+        start_time = parse_timestamp(start_time, "%Y-%m-%dT%H:%M:%S.%fZ")
+        stop_time = parse_timestamp(data["stop_time"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        duration = None
+
+        if stop_time is not None:
+            duration = stop_time - start_time
+
+        html_url = data["build_url"]
+        data_url = f"{self.agent.data_url}/api/v1.1/project/{self.repo}/{number}?limit=1&shallow=1"
 
         result = JobResult()
-        result.number = int(data["number"])
+        result.number = number
         result.status = status
         result.start_time = start_time
         result.duration = duration

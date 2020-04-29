@@ -135,7 +135,7 @@ class _ModelUpdateThread(_threading.Thread):
         self.scheduler.run()
 
     def update_model(self):
-        self.scheduler.enter(10 * 60, 1, self.update_model)
+        self.scheduler.enter(20 * 60, 1, self.update_model)
 
         try:
             self.model.update()

@@ -20,7 +20,6 @@
 from .model import *
 
 import logging as _logging
-import requests as _requests
 
 _log = _logging.getLogger("blinky.jenkins")
 

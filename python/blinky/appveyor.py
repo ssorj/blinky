@@ -19,10 +19,7 @@
 
 from .model import *
 
-import calendar as _calendar
-import datetime as _datetime
 import logging as _logging
-import requests as _requests
 
 _log = _logging.getLogger("blinky.appveyor")
 

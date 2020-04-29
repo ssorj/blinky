@@ -19,10 +19,7 @@
 
 from .model import *
 
-import calendar as _calendar
-import datetime as _datetime
 import logging as _logging
-import requests as _requests
 import urllib.parse as _parse
 
 _log = _logging.getLogger("blinky.github")
