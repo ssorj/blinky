@@ -57,7 +57,7 @@ class AppVeyorJob(HttpJob):
         if start_time is None:
             start_time = data["created"]
 
-        start_time = parse_timestamp(start_time[:26], "%Y-%m-%dT%H:%M:%S.%f")
+        start_time = parse_timestamp(start_time[:23], "%Y-%m-%dT%H:%M:%S.%f")
 
         version = data["version"]
 
