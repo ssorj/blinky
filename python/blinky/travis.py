@@ -71,7 +71,7 @@ class TravisJob(HttpJob):
         if duration is not None:
             duration = int(round(duration * 1000))
 
-        html_url = f"https://travis-ci.org/{self.repo}/builds/{build_id}"
+        html_url = f"{self.agent.html_url}/{self.repo}/builds/{build_id}"
         data_url = f"{self.agent.data_url}/builds/{build_id}"
 
         result = JobResult()
