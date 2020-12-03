@@ -30,11 +30,15 @@ _status_mapping = {
 }
 
 class TravisAgent(HttpAgent):
-    def __init__(self, model, name):
+    def __init__(self, model, name,
+                 html_url="https://travis-ci.com",
+                 data_url="https://api.travis-ci.com",
+                 token=None):
         super().__init__(model, name)
 
-        self.html_url = "https://travis-ci.org"
-        self.data_url = "https://api.travis-ci.org"
+        self.html_url = html_url
+        self.data_url = data_url
+        self.token = token
 
 class TravisJob(HttpJob):
     def __init__(self, model, group, component, environment, agent, name, repo, branch):

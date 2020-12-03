@@ -222,6 +222,7 @@ class Agent(_ModelObject):
 
         self.html_url = None
         self.data_url = None
+        self.token = None
         self.enabled = True
 
         self.jobs = list()
@@ -366,7 +367,10 @@ class HttpAgent(Agent):
         _log.info("{} updated {} jobs in {:.2f}s".format(self, len(self.jobs), elapsed))
 
 class HttpJob(Job):
-    def fetch_data(self, session, headers=None):
+    def fetch_data(self, session, headers={}):
+        if self.agent.token:
+            headers["Authorization"] = f"token {self.agent.token}"
+
         url = self.data_url
 
         if self.fetch_url is not None:

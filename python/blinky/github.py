@@ -30,11 +30,12 @@ _status_mapping = {
 }
 
 class GitHubAgent(HttpAgent):
-    def __init__(self, model, name):
+    def __init__(self, model, name, token=None):
         super().__init__(model, name)
 
         self.html_url = "https://github.com"
         self.data_url = "https://api.github.com"
+        self.token = token
 
 class GitHubJob(HttpJob):
     def __init__(self, model, group, component, environment, agent, name, repo, branch, workflow_name, workflow_id):
