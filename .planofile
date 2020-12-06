@@ -1,0 +1,34 @@
+from bullseye import *
+
+project.name = "blinky"
+project.extra_source_dirs = ["static"]
+
+image_registry = "quay.io"
+image_tag = f"{image_registry}/ssorj/blinky"
+
+@target
+def test():
+    run("blinky --config misc/config.py --init-only")
+
+@target(help="Build a container image")
+def build_image():
+    run(f"podman build -t {image_tag} .")
+
+@target(help="Run the container image")
+def run_image():
+    if run(f"podman image inspect {image_tag}", check=False, output=DEVNULL).exit_code != 0:
+        build_image()
+
+    run(f"podman run --rm -p 8080:8080 {image_tag}")
+
+@target(help="Run the container image in debug mode")
+def debug_image():
+    run(f"podman run --rm -p 8080:8080 -it {image_tag} /bin/bash")
+
+@target(help="Log in to the image registry")
+def registry_login():
+    run(f"podman login {image_registry}")
+
+@target(requires=registry_login, help="Push the image to the image registry")
+def push_image():
+    run(f"podman push {image_tag}")

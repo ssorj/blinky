@@ -28,13 +28,16 @@ ENV HOME=/app
 
 WORKDIR /src
 
-RUN make clean install INSTALL_DIR=/app
+RUN ./plano build --clean --prefix /app
+RUN ./plano install
 
 FROM registry.fedoraproject.org/fedora-minimal
 
 RUN microdnf install python3-certifi python3-requests python3-tornado && microdnf clean all
 
 COPY --from=build /app /app
+
+COPY misc/config.py /etc/blinky/config.py
 
 WORKDIR /app
 ENV HOME=/app
