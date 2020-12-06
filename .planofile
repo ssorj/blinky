@@ -14,16 +14,28 @@ def test():
 def build_image():
     run(f"podman build -t {image_tag} .")
 
-@target(help="Run the container image")
-def run_image():
+def _maybe_build_image():
     if run(f"podman image inspect {image_tag}", check=False, output=DEVNULL).exit_code != 0:
         build_image()
 
+@target(help="Run the container image")
+def run_image():
+    _maybe_build_image()
     run(f"podman run --rm -p 8080:8080 {image_tag}")
 
 @target(help="Run the container image in debug mode")
 def debug_image():
+    _maybe_build_image()
     run(f"podman run --rm -p 8080:8080 -it {image_tag} /bin/bash")
+
+@target(help="Test the container image")
+def test_image():
+    _maybe_build_image()
+    run(f"podman run --rm -p 8080:8080 -it {image_tag} blinky --init-only")
+
+@target(help="Delete the container image")
+def clean_image():
+    run(f"podman image rm {image_tag}")
 
 @target(help="Log in to the image registry")
 def registry_login():
