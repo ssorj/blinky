@@ -7,7 +7,11 @@ image_registry = "quay.io"
 image_tag = f"{image_registry}/ssorj/blinky"
 
 @target
-def test():
+def test(clean=False):
+    if clean:
+        run_target("clean")
+
+    build()
     run("blinky --config misc/config.py --init-only")
 
 @target(help="Build a container image")
@@ -47,6 +51,7 @@ def clean_image():
 def registry_login():
     run(f"podman login {image_registry}")
 
-@target(requires=registry_login, help="Push the image to the image registry")
+@target(help="Push the image to the image registry")
 def push_image():
+    registry_login()
     run(f"podman push {image_tag}")
