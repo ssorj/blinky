@@ -1,3 +1,22 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
 from bullseye import *
 
 project.name = "blinky"
@@ -6,15 +25,15 @@ project.extra_source_dirs = ["static"]
 image_registry = "quay.io"
 image_tag = f"{image_registry}/ssorj/blinky"
 
-@target
+@command
 def test(clean=False):
     if clean:
-        run_target("clean")
+        run_command("clean")
 
     build()
     run("blinky --config misc/config.py --init-only")
 
-@target(help="Build a container image")
+@command(help="Build a container image")
 def build_image(clean=False):
     if clean:
         clean_image()
@@ -28,30 +47,30 @@ def _maybe_build_image(clean):
     if run(f"podman image inspect {image_tag}", check=False, output=DEVNULL).exit_code != 0:
         build_image()
 
-@target(help="Run the container image")
+@command(help="Run the container image")
 def run_image(clean=False):
     _maybe_build_image(clean)
     run(f"podman run --rm -p 8080:8080 {image_tag}")
 
-@target(help="Run the container image in debug mode")
+@command(help="Run the container image in debug mode")
 def debug_image(clean=False):
     _maybe_build_image(clean)
     run(f"podman run --rm -p 8080:8080 -it {image_tag} /bin/bash")
 
-@target(help="Test the container image")
+@command(help="Test the container image")
 def test_image(clean=False):
     _maybe_build_image(clean)
     run(f"podman run --rm -p 8080:8080 -it {image_tag} blinky --init-only")
 
-@target(help="Delete the container image")
+@command(help="Delete the container image")
 def clean_image():
     run(f"podman image rm {image_tag}")
 
-@target(help="Log in to the image registry")
+@command(help="Log in to the image registry")
 def registry_login():
     run(f"podman login {image_registry}")
 
-@target(help="Push the image to the image registry")
+@command(help="Push the image to the image registry")
 def push_image():
     registry_login()
     run(f"podman push {image_tag}")
