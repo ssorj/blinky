@@ -20,7 +20,7 @@
 from bullseye import *
 
 project.name = "blinky"
-project.extra_source_dirs = ["static"]
+project.data_dirs = ["static"]
 
 image_registry = "quay.io"
 image_tag = f"{image_registry}/ssorj/blinky"
@@ -31,7 +31,9 @@ def test(clean=False):
         run_command("clean")
 
     build()
-    run("blinky --config misc/config.py --init-only")
+
+    with project_env():
+        run("blinky --config misc/config.py --init-only")
 
 @command(help="Build a container image")
 def build_image(clean=False):
