@@ -25,54 +25,74 @@ project.data_dirs = ["static"]
 image_registry = "quay.io"
 image_tag = f"{image_registry}/ssorj/blinky"
 
-@command
-def test(clean=False):
-    if clean:
-        run_command("clean")
-
-    build()
+@command(parent=test)
+def test(app, *args, **kwargs):
+    test.super(app, *args, **kwargs)
 
     with project_env():
         run("blinky --config misc/config.py --init-only")
 
-@command(help="Build a container image")
-def build_image(clean=False):
+@command
+def build_image(app, clean=False):
+    """Build a container image"""
+
     if clean:
-        clean_image()
+        clean_image(app)
 
     run(f"podman build -t {image_tag} .")
 
-def _maybe_build_image(clean):
+def _maybe_build_image(app, clean):
     if clean:
-        clean_image()
+        clean_image(app)
 
     if run(f"podman image inspect {image_tag}", check=False, output=DEVNULL).exit_code != 0:
-        build_image()
+        build_image(app)
 
-@command(help="Run the container image")
-def run_image(clean=False):
-    _maybe_build_image(clean)
+@command
+def run_image(app, clean=False):
+    """Run the container image"""
+
+    _maybe_build_image(app, clean)
+
     run(f"podman run --rm -p 8080:8080 {image_tag}")
 
-@command(help="Run the container image in debug mode")
-def debug_image(clean=False):
-    _maybe_build_image(clean)
+@command
+def debug_image(app, clean=False):
+    """Run the container image in debug mode"""
+
+    _maybe_build_image(app, clean)
+
     run(f"podman run --rm -p 8080:8080 -it {image_tag} /bin/bash")
 
-@command(help="Test the container image")
-def test_image(clean=False):
-    _maybe_build_image(clean)
+@command
+def test_image(app, clean=False):
+    """Test the container image"""
+
+    _maybe_build_image(app, clean)
+
     run(f"podman run --rm -p 8080:8080 -it {image_tag} blinky --init-only")
 
-@command(help="Delete the container image")
-def clean_image():
+@command
+def clean_image(app):
+    """Delete the container image"""
     run(f"podman image rm {image_tag}")
 
-@command(help="Log in to the image registry")
-def registry_login():
+@command
+def registry_login(app):
+    """Log in to the image registry"""
     run(f"podman login {image_registry}")
 
-@command(help="Push the image to the image registry")
-def push_image():
-    registry_login()
+@command
+def push_image(app):
+    """Push the image to the image registry"""
+
+    registry_login(app)
+
     run(f"podman push {image_tag}")
+
+@command
+def big_test(app):
+    """Run all the tests I have"""
+
+    test(app, clean_=True)
+    test_image(app, clean=True)
