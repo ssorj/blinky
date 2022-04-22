@@ -41,7 +41,7 @@ build:
 	./setup.py check
 
 .PHONY: install
-install: build
+install: clean
 	./setup.py install --root ${DESTDIR} --prefix ${PREFIX}
 
 .PHONY: docs
@@ -58,7 +58,7 @@ clean:
 .PHONY: test
 test: clean build
 	python3 scripts/test
-	python2 scripts/test
+	$$(type -P python2) && python2 scripts/test || :
 
 .PHONY: big-test
 big-test: test test-centos-8 test-centos-7 test-fedora test-ubuntu
