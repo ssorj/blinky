@@ -19,7 +19,7 @@
 
 FROM registry.fedoraproject.org/fedora-minimal AS build
 
-RUN microdnf install findutils make python3 && microdnf clean all
+RUN microdnf -y install findutils make python3 && microdnf clean all
 
 COPY . /src
 
@@ -32,7 +32,7 @@ RUN ./plano install --clean --prefix /app
 
 FROM registry.fedoraproject.org/fedora-minimal
 
-RUN microdnf install python3-certifi python3-requests python3-tornado && microdnf clean all
+RUN microdnf -y install python3-certifi python3-requests python3-tornado && microdnf clean all
 
 COPY --from=build /app /app
 
