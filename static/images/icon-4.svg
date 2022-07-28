@@ -8,7 +8,7 @@
    version="1.1"
    id="svg5"
    inkscape:version="1.2.1 (9c6d41e410, 2022-07-14)"
-   sodipodi:docname="icon.svg"
+   sodipodi:docname="icon-4.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -54,32 +54,25 @@
        x="72.760414"
        y="132.82083" />
     <rect
-       style="fill:#3fbf7f;fill-opacity:1;stroke-width:0.264583"
-       id="rect5538"
+       style="fill:#ff3f00;fill-opacity:1;stroke-width:0.264583"
+       id="rect13058"
        width="2.6458333"
        height="2.6458333"
-       x="75.935417"
+       x="75.93541"
        y="129.64583" />
-    <rect
-       style="fill:#3fbf7f;fill-opacity:1;stroke-width:0.264583"
-       id="rect5540"
-       width="2.6458333"
-       height="2.6458333"
-       x="72.760414"
-       y="129.64583" />
-    <rect
-       style="fill:#3fbf7f;fill-opacity:1;stroke-width:0.264583"
-       id="rect5542"
-       width="2.6458333"
-       height="2.6458333"
-       x="75.935417"
-       y="132.82083" />
     <rect
        style="fill:#ff3f00;fill-opacity:1;stroke-width:0.264583"
-       id="rect10781"
+       id="rect13060"
        width="2.6458333"
        height="2.6458333"
        x="72.760414"
+       y="129.64584" />
+    <rect
+       style="fill:#ff3f00;fill-opacity:1;stroke-width:0.264583"
+       id="rect13087"
+       width="2.6458333"
+       height="2.6458333"
+       x="75.935417"
        y="132.82083" />
   </g>
 </svg>

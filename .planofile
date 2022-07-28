@@ -34,10 +34,11 @@ def test_(app, *args, **kwargs):
 
 @command
 def run_(app):
+    clean(app)
     build(app)
 
     with project_env():
-        run("blinky --config misc/config.py")
+        run("blinky")
 
 @command
 def build_image(app, clean=False):

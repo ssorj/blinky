@@ -424,14 +424,57 @@ class Blinky {
         }
     }
 
+    renderSiteIcon() {
+        const jobs = this.state.data.jobs;
+        let passed = 0;
+        let failed = 0;
+
+        for (let jobId of Object.keys(jobs)) {
+            let job = jobs[jobId];
+
+            if (!job.current_result) {
+                continue;
+            }
+
+            if (job.current_result.status == "PASSED") {
+                passed += 1;
+            } else if (job.current_result.status == "FAILED") {
+                failed += 1;
+            }
+        }
+
+        const total = passed + failed;
+        let icon;
+
+        if (total == 0) {
+            return;
+        }
+
+        if (failed / total == 1.0) {
+            icon = "/images/icon-4.svg";
+        } else if (failed / total > 0.66) {
+            icon = "/images/icon-3.svg";
+        } else if (failed / total > 0.33) {
+            icon = "/images/icon-2.svg";
+        } else if (failed / total > 0.0) {
+            icon = "/images/icon-1.svg";
+        } else {
+            icon = "/images/icon-0.svg";
+        }
+
+        $("link[rel*='icon']").href = icon;
+    }
+
     renderPage() {
         console.log("Rendering page");
 
         this.state.renderTime = new Date().getTime();
 
-        let elem = gesso.createDiv(null, "#content");
+        this.renderSiteIcon();
 
         document.title = this.state.data.title;
+
+        let elem = gesso.createDiv(null, "#content");
 
         this.renderHeader(elem);
         this.renderBody(elem);
