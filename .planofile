@@ -25,12 +25,19 @@ project.data_dirs = ["static"]
 image_registry = "quay.io"
 image_tag = f"{image_registry}/ssorj/blinky"
 
-@command(parent=test)
-def test(app, *args, **kwargs):
-    test.super(app, *args, **kwargs)
+@command(parent=test_)
+def test_(app, *args, **kwargs):
+    test_.parent.function(app, *args, **kwargs)
 
     with project_env():
         run("blinky --config misc/config.py --init-only")
+
+@command
+def run_(app):
+    build(app)
+
+    with project_env():
+        run("blinky --config misc/config.py")
 
 @command
 def build_image(app, clean=False):

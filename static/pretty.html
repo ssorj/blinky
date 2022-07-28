@@ -4,37 +4,35 @@
     <title>Pretty data</title>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <link rel="stylesheet" href="app.css" type="text/css"/>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/styles/default.min.css"/>
+    <link rel="stylesheet" href="main.css" type="text/css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/default.min.css"/>
     <link rel="icon" href="/images/icon.png" type="image/png" sizes="32x32"/>
     <script src="gesso.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/highlight.min.js"></script>
     <script>
-    <![CDATA[
       "use strict";
 
       const gesso = new Gesso();
 
-      let qs = window.location.search;
-      let url = decodeURIComponent(qs.substring(5));
-      let proxy = "proxy?url=" + encodeURIComponent(url);
+      const url = new URL(window.location.href).searchParams.get("url");
+      const proxy = "proxy?url=" + encodeURIComponent(url);
 
       window.addEventListener("load", function (event) {
-          let link = $("#link");
+          const link = $("#link");
 
           link.setAttribute("href", url);
           link.textContent = url;
 
           function loadHandler(event) {
+              const contentType = event.target.getResponseHeader("Content-Type");
               let text = event.target.responseText;
-              let contentType = event.target.getResponseHeader("Content-Type");
 
               if (contentType.indexOf("application/json") === 0) {
-                  let json = JSON.parse(text);
+                  const json = JSON.parse(text);
 
                   text = JSON.stringify(json, null, 4);
-                  text = hljs.highlight("json", text).value;
-                  text = text.replace(/"(https?:\/\/.*?)"/g, "\"<a href=\"pretty-data.html?url=$1\">$1</a>\"");
+                  text = hljs.highlight(text, {language: "json"}).value;
+                  text = text.replace(/&quot;(https?:\/\/.*?)&quot;/g, "&quot;<a href=\"pretty.html?url=$1\">$1</a>&quot;");
               }
 
               try {
@@ -48,12 +46,11 @@
               $("#content").textContent = "[Error! My request for data failed]";
           }
 
-          let request = gesso.openRequest("GET", proxy, loadHandler);
+          const request = gesso.openRequest("GET", proxy, loadHandler);
 
           request.addEventListener("error", errorHandler);
           request.send();
       });
-    ]]>
     </script>
   </head>
   <body>

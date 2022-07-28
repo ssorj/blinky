@@ -49,12 +49,12 @@ class Blinky {
             }
 
             if (this.state.query.view === "table") {
-                gesso.fetch("/data.json", (data) => {
+                gesso.fetch("/api/data", (data) => {
                     this.state.data = data;
                     window.dispatchEvent(new Event("statechange"));
                 });
             } else {
-                this.state.dataFetchState = gesso.fetchPeriodically("/data.json", (data) => {
+                this.state.dataFetchState = gesso.fetchPeriodically("/api/data", (data) => {
                     this.state.data = data;
                     window.dispatchEvent(new Event("statechange"));
                 });
@@ -99,8 +99,10 @@ class Blinky {
 
         let status = gesso.createSpan(elem, "#timestamp", time.toLocaleString());
 
+        let url = new URL("/api/data", window.location.href);
+
         gesso.createText(elem, " \u2022 ");
-        gesso.createLink(elem, "pretty-data.html?url=/data.json", "Data");
+        gesso.createLink(elem, "pretty.html?url=" + encodeURIComponent(url), "Data");
     }
 
     renderViewSelector(parent) {
@@ -168,7 +170,7 @@ class Blinky {
     }
 
     renderResultLinks(parent, result) {
-        let data_url = "pretty-data.html?url=" + encodeURIComponent(result.data_url);
+        let data_url = "pretty.html?url=" + encodeURIComponent(result.data_url);
 
         gesso.createLink(parent, data_url, "Data");
         gesso.createText(parent, ", ");
