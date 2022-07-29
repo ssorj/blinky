@@ -450,13 +450,13 @@ class Blinky {
             return;
         }
 
-        if (failed / total == 1.0) {
+        if (failed / total >= 0.75) {
             icon = "/images/icon-4.svg";
-        } else if (failed / total > 0.66) {
+        } else if (failed / total >= 0.5) {
             icon = "/images/icon-3.svg";
-        } else if (failed / total > 0.33) {
+        } else if (failed / total >= 0.25) {
             icon = "/images/icon-2.svg";
-        } else if (failed / total > 0.0) {
+        } else if (failed / total >= 0.0) {
             icon = "/images/icon-1.svg";
         } else {
             icon = "/images/icon-0.svg";
