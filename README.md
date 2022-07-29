@@ -15,13 +15,14 @@ various types: `JenkinsAgent`, `TravisAgent`, `AppVeyorAgent`, or
 
 A *job* is a channel for repeatedly executing a test of a particular
 component in a particular environment.  Like an agent, a job has
-types: `JenkinsJob`, `TravisJob`, `AppVeyorJob`, or `GitHubJob`.
+types: `CircleCiJob`, `JenkinsJob`, `TravisCiJob`, `AppVeyorJob`, or
+`GitHubJob`.
 
 Jobs are organized into named *groups*.  These are used for
 presentation.
 
-Execution of a job produces a *job result*.  It records whether the
-job completed successfully or failed.
+The execution of a job is a *job run*.  Once complete, the job run
+indicates whether it passed or failed.
 
 A job keeps track of its current and previous results.  A job blinks
 if it is newly failing, meaning its current result is a failure and
