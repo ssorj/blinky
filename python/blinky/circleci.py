@@ -45,7 +45,7 @@ class CircleCiJob(HttpJob):
         self.html_url = f"{self.agent.html_url}/{self.repo}/tree/{self.branch}"
         self.data_url = f"{self.agent.data_url}/api/v1.1/project/{self.repo}/tree/{self.branch}?limit=1&shallow=1"
 
-    def convert_result(self, data):
+    def convert_run(self, data):
         data = data[0]
         number = data["build_num"]
 
@@ -67,12 +67,12 @@ class CircleCiJob(HttpJob):
         html_url = data["build_url"]
         data_url = f"{self.agent.data_url}/api/v1.1/project/{self.repo}/{number}?limit=1&shallow=1"
 
-        result = JobResult()
-        result.number = number
-        result.status = status
-        result.start_time = start_time
-        result.duration = duration
-        result.html_url = html_url
-        result.data_url = data_url
+        run = JobRun()
+        run.number = number
+        run.status = status
+        run.start_time = start_time
+        run.duration = duration
+        run.html_url = html_url
+        run.data_url = data_url
 
-        return result
+        return run

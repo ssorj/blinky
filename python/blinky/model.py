@@ -270,7 +270,7 @@ class Job(ModelObject):
         self.environment.jobs.append(self)
         self.agent.jobs.append(self)
 
-        self.results = _collections.deque(maxlen=2)
+        self.runs = _collections.deque(maxlen=2)
         self.update_failures = 0
 
         self.html_url = None
@@ -285,7 +285,7 @@ class Job(ModelObject):
             return
 
         try:
-            result = self.convert_result(data)
+            run = self.convert_run(data)
         except KeyboardInterrupt:
             raise
         except:
@@ -295,30 +295,30 @@ class Job(ModelObject):
 
             return
 
-        assert result is not None
+        assert run is not None
 
         self.update_failures = 0
 
-        if self.current_result and self.current_result.number == result.number:
-            self.results[-1] = result
+        if self.current_run and self.current_run.number == run.number:
+            self.runs[-1] = run
         else:
-            self.results.append(result)
+            self.runs.append(run)
 
     def fetch_data(self, context):
         raise NotImplementedError()
 
-    def convert_result(self, data):
+    def convert_run(self, data):
         raise NotImplementedError()
 
     @property
-    def current_result(self):
-        if len(self.results) >= 1:
-            return self.results[-1]
+    def current_run(self):
+        if len(self.runs) >= 1:
+            return self.runs[-1]
 
     @property
-    def previous_result(self):
-        if len(self.results) >= 2:
-            return self.results[-2]
+    def previous_run(self):
+        if len(self.runs) >= 2:
+            return self.runs[-2]
 
     def data(self):
         data = super().data()
@@ -330,22 +330,22 @@ class Job(ModelObject):
         data["html_url"] = self.html_url
         data["data_url"] = self.data_url
 
-        data["previous_result"] = None
-        data["current_result"] = None
+        data["previous_run"] = None
+        data["current_run"] = None
 
-        if self.previous_result:
-            data["previous_result"] = self.previous_result.data()
+        if self.previous_run:
+            data["previous_run"] = self.previous_run.data()
 
-        if self.current_result:
-            data["current_result"] = self.current_result.data()
+        if self.current_run:
+            data["current_run"] = self.current_run.data()
 
         data["update_failures"] = self.update_failures
 
         return data
 
-class JobResult:
+class JobRun:
     def __init__(self):
-        self.number = None      # Result sequence number
+        self.number = None      # Run sequence number
         self.status = None      # Status string (PASSED, FAILED, [other])
         self.start_time = None  # Start time in milliseconds
         self.duration = None    # Duration in milliseconds

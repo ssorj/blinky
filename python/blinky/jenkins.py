@@ -46,7 +46,7 @@ class JenkinsJob(HttpJob):
         self.data_url = f"{self.html_url}/api/json?{_rest_api_qs}"
         self.fetch_url = f"{self.html_url}/lastBuild/api/json?{_rest_api_qs}"
 
-    def convert_result(self, data):
+    def convert_run(self, data):
         number = data["number"]
 
         status = data["result"]
@@ -61,17 +61,17 @@ class JenkinsJob(HttpJob):
                 tests_url = f"{html_url}/testReport"
                 break
 
-        result = JobResult()
-        result.number = number
-        result.status = status
-        result.start_time = data["timestamp"]
-        result.duration = data["duration"]
-        result.html_url = html_url
-        result.data_url = data_url
-        result.tests_url = tests_url
-        result.logs_url = f"{html_url}/console"
+        run = JobRun()
+        run.number = number
+        run.status = status
+        run.start_time = data["timestamp"]
+        run.duration = data["duration"]
+        run.html_url = html_url
+        run.data_url = data_url
+        run.tests_url = tests_url
+        run.logs_url = f"{html_url}/console"
 
-        return result
+        return run
 
 # Fetch only as much data as we need
 _rest_api_qs = "tree=number,result,actions,timestamp,duration"

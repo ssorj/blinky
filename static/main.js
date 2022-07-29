@@ -169,16 +169,16 @@ class Blinky {
         return gesso.createLink(parent, obj.html_url, text);
     }
 
-    renderResultLinks(parent, result) {
-        let data_url = "pretty.html?url=" + encodeURIComponent(result.data_url);
+    renderRunLinks(parent, run) {
+        let data_url = "pretty.html?url=" + encodeURIComponent(run.data_url);
 
         gesso.createLink(parent, data_url, "Data");
         gesso.createText(parent, ", ");
 
-        if (result.tests_url == null) {
+        if (run.tests_url == null) {
             gesso.createSpan(parent, "disabled", "Tests");
         } else {
-            gesso.createLink(parent, result.tests_url, "Tests");
+            gesso.createLink(parent, run.tests_url, "Tests");
         }
     }
 
@@ -219,8 +219,8 @@ class Blinky {
         let component = this.state.data.components[job.component_id];
         let agent = this.state.data.agents[job.agent_id];
         let environment = this.state.data.environments[job.environment_id];
-        let currResult = job.current_result;
-        let prevResult = job.previous_result;
+        let currRun = job.current_run;
+        let prevRun = job.previous_run;
 
         let summary = gesso.createLink(elem, job.html_url, {"class": "job-summary"});
 
@@ -233,27 +233,27 @@ class Blinky {
         gesso.createDiv(summary, "summary-agent", agent.name);
         gesso.createDiv(summary, "summary-environment", environment.name);
 
-        if (currResult == null) {
+        if (currRun == null) {
             elem.classList.add("no-data");
             return;
         }
 
-        summary.setAttribute("href", currResult.html_url);
+        summary.setAttribute("href", currRun.html_url);
 
-        if (currResult.logs_url != null) {
-            summary.setAttribute("href", currResult.logs_url);
+        if (currRun.logs_url != null) {
+            summary.setAttribute("href", currRun.logs_url);
         }
 
-        if (currResult.tests_url != null) {
-            summary.setAttribute("href", currResult.tests_url);
+        if (currRun.tests_url != null) {
+            summary.setAttribute("href", currRun.tests_url);
         }
 
-        if (currResult.status === "PASSED") {
+        if (currRun.status === "PASSED") {
             elem.classList.add("passed");
-        } else if (currResult.status === "FAILED") {
+        } else if (currRun.status === "FAILED") {
             elem.classList.add("failed");
 
-            if (prevResult != null && prevResult.status === "PASSED") {
+            if (prevRun != null && prevRun.status === "PASSED") {
                 elem.classList.add("blinky");
             }
         }
@@ -264,8 +264,8 @@ class Blinky {
 
         let ago = null;
 
-        if (currResult.start_time != null) {
-            ago = this.state.renderTime - currResult.start_time;
+        if (currRun.start_time != null) {
+            ago = this.state.renderTime - currRun.start_time;
         }
 
         gesso.createDiv(summary, "summary-start-time", gesso.formatDurationBrief(ago));
@@ -279,8 +279,8 @@ class Blinky {
         let component = this.state.data.components[job.component_id];
         let environment = this.state.data.environments[job.environment_id];
         let agent = this.state.data.agents[job.agent_id];
-        let currResult = job.current_result;
-        let prevResult = job.previous_result;
+        let currRun = job.current_run;
+        let prevRun = job.previous_run;
 
         let table = gesso.createElement(elem, "table");
         let tbody = gesso.createElement(table, "tbody");
@@ -295,31 +295,31 @@ class Blinky {
         td = this.createJobDetailField(tbody, "Job");
         this.createObjectLink(td, job);
 
-        if (currResult != null) {
+        if (currRun != null) {
             let ago = "-";
 
-            if (currResult.start_time != null) {
-                let millisAgo = this.state.renderTime - currResult.start_time;
+            if (currRun.start_time != null) {
+                let millisAgo = this.state.renderTime - currRun.start_time;
                 ago = gesso.formatDurationBrief(millisAgo) + " ago";
             }
 
-            let duration = gesso.formatDurationBrief(currResult.duration);
+            let duration = gesso.formatDurationBrief(currRun.duration);
 
             td = this.createJobDetailField(tbody, "Number");
-            this.createObjectLink(td, currResult, currResult.number);
+            this.createObjectLink(td, currRun, currRun.number);
 
             this.createJobDetailField(tbody, "Time", ago);
             this.createJobDetailField(tbody, "Duration", duration);
-            this.createJobDetailField(tbody, "Status", currResult.status);
+            this.createJobDetailField(tbody, "Status", currRun.status);
 
-            if (prevResult == null) {
+            if (prevRun == null) {
                 this.createJobDetailField(tbody, "Prev status", "-");
             } else {
-                this.createJobDetailField(tbody, "Prev status", prevResult.status);
+                this.createJobDetailField(tbody, "Prev status", prevRun.status);
             }
 
             td = this.createJobDetailField(tbody, "Links");
-            this.renderResultLinks(td, currResult);
+            this.renderRunLinks(td, currRun);
         }
     }
 
@@ -374,8 +374,8 @@ class Blinky {
             let environment = environments[job.environment_id];
             let agent = agents[job.agent_id];
 
-            let currResult = job.current_result;
-            let prevResult = job.previous_result;
+            let currRun = job.current_run;
+            let prevRun = job.previous_run;
 
             let tr = gesso.createElement(tbody, "tr");
             gesso.createElement(tr, "td", component.name);
@@ -389,30 +389,30 @@ class Blinky {
             td = gesso.createElement(tr, "td");
             this.createObjectLink(td, agent);
 
-            if (currResult) {
-                let duration = gesso.formatDurationBrief(currResult.duration);
+            if (currRun) {
+                let duration = gesso.formatDurationBrief(currRun.duration);
                 let ago = "-";
-                let prevResultStatus = "-";
+                let prevRunStatus = "-";
 
-                if (currResult.start_time) {
-                    let millisAgo = this.state.renderTime - currResult.start_time;
+                if (currRun.start_time) {
+                    let millisAgo = this.state.renderTime - currRun.start_time;
                     ago = gesso.formatDurationBrief(millisAgo) + " ago";
                 }
 
-                if (prevResult) {
-                    prevResultStatus = prevResult.status;
+                if (prevRun) {
+                    prevRunStatus = prevRun.status;
                 }
 
                 td = gesso.createElement(tr, "td");
-                this.createObjectLink(td, currResult, currResult.number);
+                this.createObjectLink(td, currRun, currRun.number);
 
-                gesso.createElement(tr, "td", {text: ago, "data-value": currResult.start_time});
-                gesso.createElement(tr, "td", {text: duration, "data-value": currResult.duration});
-                gesso.createElement(tr, "td", currResult.status);
-                gesso.createElement(tr, "td", prevResultStatus);
+                gesso.createElement(tr, "td", {text: ago, "data-value": currRun.start_time});
+                gesso.createElement(tr, "td", {text: duration, "data-value": currRun.duration});
+                gesso.createElement(tr, "td", currRun.status);
+                gesso.createElement(tr, "td", prevRunStatus);
 
                 td = gesso.createElement(tr, "td");
-                this.renderResultLinks(td, currResult);
+                this.renderRunLinks(td, currRun);
             } else {
                 gesso.createElement(tr, "td");
                 gesso.createElement(tr, "td");
@@ -432,13 +432,13 @@ class Blinky {
         for (let jobId of Object.keys(jobs)) {
             let job = jobs[jobId];
 
-            if (!job.current_result) {
+            if (!job.current_run) {
                 continue;
             }
 
-            if (job.current_result.status == "PASSED") {
+            if (job.current_run.status == "PASSED") {
                 passed += 1;
-            } else if (job.current_result.status == "FAILED") {
+            } else if (job.current_run.status == "FAILED") {
                 failed += 1;
             }
         }

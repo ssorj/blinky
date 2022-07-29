@@ -54,7 +54,7 @@ class GitHubJob(HttpJob):
         self.html_url = f"{self.agent.html_url}/{self.repo}/actions?query=workflow%3A{escaped_name}"
         self.data_url = f"{self.agent.data_url}/repos/{self.repo}/actions/workflows/{self.workflow_id}/runs?branch={self.branch}"
 
-    def convert_result(self, data):
+    def convert_run(self, data):
         try:
             data = data["workflow_runs"][0]
         except IndexError:
@@ -72,12 +72,12 @@ class GitHubJob(HttpJob):
             end_time = parse_timestamp(data["updated_at"])
             duration = end_time - start_time
 
-        result = JobResult()
-        result.number = data["run_number"]
-        result.status = status
-        result.start_time = start_time
-        result.duration = duration
-        result.html_url = data["html_url"]
-        result.data_url = data["url"]
+        run = JobRun()
+        run.number = data["run_number"]
+        run.status = status
+        run.start_time = start_time
+        run.duration = duration
+        run.html_url = data["html_url"]
+        run.data_url = data["url"]
 
-        return result
+        return run

@@ -46,7 +46,7 @@ class AppVeyorJob(HttpJob):
         self.html_url = f"{self.agent.html_url}/project/{self.account}/{self.project}"
         self.data_url = f"{self.agent.html_url}/api/projects/{self.account}/{self.project}/branch/{self.branch}"
 
-    def convert_result(self, data):
+    def convert_run(self, data):
         data = data["build"]
 
         status = data["status"]
@@ -73,13 +73,13 @@ class AppVeyorJob(HttpJob):
         if tests > 0:
             tests_url = f"{self.html_url}/build/tests"
 
-        result = JobResult()
-        result.number = data["buildNumber"]
-        result.status = status
-        result.start_time = start_time
-        result.duration = None
-        result.html_url = html_url
-        result.data_url = data_url
-        result.tests_url = tests_url
+        run = JobRun()
+        run.number = data["buildNumber"]
+        run.status = status
+        run.start_time = start_time
+        run.duration = None
+        run.html_url = html_url
+        run.data_url = data_url
+        run.tests_url = tests_url
 
-        return result
+        return run

@@ -58,7 +58,7 @@ class TravisCiJob(HttpJob):
 
         return super().fetch_data(session, headers)
 
-    def convert_result(self, data):
+    def convert_run(self, data):
         data = data["branch"]
         build_id = data["id"]
 
@@ -74,12 +74,12 @@ class TravisCiJob(HttpJob):
         html_url = f"{self.agent.html_url}/{self.repo}/builds/{build_id}"
         data_url = f"{self.agent.data_url}/builds/{build_id}"
 
-        result = JobResult()
-        result.number = int(data["number"])
-        result.status = status
-        result.start_time = start_time
-        result.duration = duration
-        result.html_url = html_url
-        result.data_url = data_url
+        run = JobRun()
+        run.number = int(data["number"])
+        run.status = status
+        run.start_time = start_time
+        run.duration = duration
+        run.html_url = html_url
+        run.data_url = data_url
 
-        return result
+        return run
