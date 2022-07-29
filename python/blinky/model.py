@@ -23,7 +23,9 @@ import datetime as _datetime
 import json as _json
 import hashlib as _hashlib
 import logging as _logging
+import os as _os
 import requests as _requests
+import runpy as _runpy
 import sched as _sched
 import threading as _threading
 import time as _time
@@ -37,7 +39,7 @@ class Model:
     def __init__(self):
         self.title = "Blinky"
 
-        self.update_thread = _ModelUpdateThread(self)
+        self.update_thread = ModelUpdateThread(self)
         self.update_time = None
 
         self.executor = _futures.ThreadPoolExecutor()
@@ -54,6 +56,18 @@ class Model:
 
     def __repr__(self):
         return _format_repr(self)
+
+    def load(self, config_file):
+        if not _os.path.exists(config_file):
+            config_file = _os.path.join("/", "etc", "blinky", "config.py")
+
+        if not _os.path.exists(config_file):
+            _sys.exit("Error! No configuration found")
+
+        _log.info("Loading model from {}".format(config_file))
+
+        init_globals = {"model": self}
+        config = _runpy.run_path(config_file, init_globals)
 
     def render_data(self):
         if self.update_time is None:
@@ -92,7 +106,7 @@ class Model:
         return data
 
     def update(self):
-        _log.info("Updating {}".format(self))
+        _log.info("Updating jobs".format(self))
 
         futures = [self.executor.submit(x.update) for x in self.agents if x.enabled]
 
@@ -115,12 +129,12 @@ class Model:
 
         _log.info("Updated at {}".format(self.update_time))
 
-class _ModelUpdateThread(_threading.Thread):
+class ModelUpdateThread(_threading.Thread):
     def __init__(self, model):
         super().__init__()
 
         self.model = model
-        self.name = "_ModelUpdateThread"
+        self.name = "ModelUpdateThread"
         self.daemon = True
 
         self.scheduler = _sched.scheduler()
@@ -144,7 +158,7 @@ class _ModelUpdateThread(_threading.Thread):
         except:
             _log.exception("Update failed")
 
-class _ModelObject:
+class ModelObject:
     def __init__(self, model, collection, name):
         assert isinstance(model, Model), model
         assert isinstance(collection, list), collection
@@ -169,7 +183,7 @@ class _ModelObject:
 
         return data
 
-class Category(_ModelObject):
+class Category(ModelObject):
     def __init__(self, model, name, key):
         super().__init__(model, model.categories, name)
 
@@ -186,7 +200,7 @@ class Category(_ModelObject):
 
         return data
 
-class Group(_ModelObject):
+class Group(ModelObject):
     def __init__(self, model, category, name):
         super().__init__(model, model.groups, name)
 
@@ -204,19 +218,19 @@ class Group(_ModelObject):
 
         return data
 
-class Component(_ModelObject):
+class Component(ModelObject):
     def __init__(self, model, name):
         super().__init__(model, model.components, name)
 
         self.jobs = list()
 
-class Environment(_ModelObject):
+class Environment(ModelObject):
     def __init__(self, model, name):
         super().__init__(model, model.environments, name)
 
         self.jobs = list()
 
-class Agent(_ModelObject):
+class Agent(ModelObject):
     def __init__(self, model, name):
         super().__init__(model, model.agents, name)
 
@@ -237,7 +251,7 @@ class Agent(_ModelObject):
 
         return data
 
-class Job(_ModelObject):
+class Job(ModelObject):
     def __init__(self, model, group, component, environment, agent, name):
         super().__init__(model, model.jobs, name)
 

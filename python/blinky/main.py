@@ -30,7 +30,7 @@ from .model import Model
 
 _log = _logging.getLogger("blinky.main")
 
-class BlinkyServer(_brbn.Server):
+class Server(_brbn.Server):
     def __init__(self, app, host="", port=8080):
         super().__init__(app, host=host, port=port)
 
@@ -89,9 +89,9 @@ class BlinkyCommand:
     def run(self):
         args = self.parser.parse_args()
 
-        load_config(args, self.model)
+        self.model.load(args.config)
 
-        server = BlinkyServer(self, port=8080)
+        server = Server(self, port=8080)
 
         if args.init_only:
             return
@@ -107,19 +107,3 @@ class BlinkyCommand:
             self.run()
         except KeyboardInterrupt:
             pass
-
-def load_config(args, model):
-    config_file = args.config
-
-    if not _os.path.exists(config_file):
-        config_file = _os.path.join("/", "etc", "blinky", "config.py")
-
-    if not _os.path.exists(config_file):
-        _sys.exit("Error! No configuration found")
-
-    _log.info("Loading configuration from {}".format(config_file))
-
-    init_globals = {"model": model}
-    config = _runpy.run_path(config_file, init_globals)
-
-    return config
