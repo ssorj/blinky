@@ -24,10 +24,7 @@ import sys
 home = os.environ.get("BLINKY_HOME", "@default_home@")
 sys.path.insert(0, os.path.join(home, "python"))
 
-from blinky.main import *
+from blinky.main import BlinkyCommand
 
 if __name__ == "__main__":
-    try:
-        main(home)
-    except KeyboardInterrupt:
-        pass
+    BlinkyCommand(home).main()

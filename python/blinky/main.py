@@ -30,11 +30,6 @@ from .model import Model
 
 _log = _logging.getLogger("blinky.main")
 
-class BlinkyApplication:
-    def __init__(self, home, model):
-        self.home = home
-        self.model = model
-
 class BlinkyServer(_brbn.Server):
     def __init__(self, app, host="", port=8080):
         super().__init__(app, host=host, port=port)
@@ -43,8 +38,6 @@ class BlinkyServer(_brbn.Server):
         self.add_route("/proxy", endpoint=ProxyHandler(), methods=["GET", "HEAD"])
 
         self.add_static_files("", _os.path.join(self.app.home, "static"))
-
-        # _Errors(self, "/errors.html")
 
 class DataHandler(_brbn.Handler):
     async def process(self, request):
@@ -66,45 +59,54 @@ class ProxyHandler(_brbn.Handler):
     async def render(self, request, proxied_response):
         return _brbn.Response(proxied_response.text, media_type=proxied_response.headers["content-type"])
 
-def main(home):
-    _logging.basicConfig(level=_logging.INFO)
+_description = "Blinky collects and displays results from CI jobs"
 
-    user_dir = _os.path.expanduser("~")
-    default_config_file = _os.path.join(user_dir, ".config", "blinky", "config.py")
+_epilog = """
+Blinky looks for its configuration in the following locations:
 
-    description = "Blinky collects and displays results from CI jobs"
+  1. The FILE indicated by --config
+  2. $HOME/.config/blinky/config.py
+  3. /etc/blinky/config.py
+"""
 
-    epilog = \
-             "Blinky looks for its configuration in the following locations:\n" \
-             "\n" \
-             "  1. The FILE indicated by --config\n" \
-             "  2. $HOME/.config/blinky/config.py\n" \
-             "  3. /etc/blinky/config.py\n"
+class BlinkyCommand:
+    def __init__(self, home):
+        self.home = home
+        self.model = Model()
 
-    parser = _argparse.ArgumentParser(description=description, epilog=epilog,
-                                      formatter_class=_argparse.RawDescriptionHelpFormatter)
+        self.parser = _argparse.ArgumentParser(description=_description, epilog=_epilog,
+                                               formatter_class=_argparse.RawDescriptionHelpFormatter)
 
-    parser.add_argument("--config", default=default_config_file, metavar="FILE",
-                        help="Load configuration from FILE")
+        user_dir = _os.path.expanduser("~")
+        default_config_file = _os.path.join(user_dir, ".config", "blinky", "config.py")
 
-    parser.add_argument("--init-only", action="store_true",
-                        help="Initialize then exit")
+        self.parser.add_argument("--config", default=default_config_file, metavar="FILE",
+                                 help="Load configuration from FILE")
 
-    args = parser.parse_args()
-    model = Model()
-    config = load_config(args, model)
+        self.parser.add_argument("--init-only", action="store_true",
+                                 help="Initialize then exit")
 
-    app = BlinkyApplication(home, model)
-    port = config.get("http_port", 8080)
+    def run(self):
+        args = self.parser.parse_args()
 
-    server = BlinkyServer(app, port=port)
+        load_config(args, self.model)
 
-    if args.init_only:
-        return
+        server = BlinkyServer(self, port=8080)
 
-    model.update_thread.start()
+        if args.init_only:
+            return
 
-    server.run()
+        self.model.update_thread.start()
+
+        server.run()
+
+    def main(self):
+        _logging.basicConfig(level=_logging.INFO)
+
+        try:
+            self.run()
+        except KeyboardInterrupt:
+            pass
 
 def load_config(args, model):
     config_file = args.config
