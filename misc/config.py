@@ -1,8 +1,8 @@
 from blinky.appveyor import *
-from blinky.circle import *
+from blinky.circleci import *
 from blinky.github import *
 from blinky.jenkins import *
-from blinky.travis import *
+from blinky.travisci import *
 
 http_port = 8080
 
