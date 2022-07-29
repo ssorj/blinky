@@ -55,7 +55,7 @@ class Model:
         self.json_digest = None
 
     def __repr__(self):
-        return _format_repr(self)
+        return format_repr(self)
 
     def load(self, config_file):
         if not _os.path.exists(config_file):
@@ -171,7 +171,7 @@ class ModelObject:
         collection.append(self)
 
     def __repr__(self):
-        return _format_repr(self, self.id, self.name)
+        return format_repr(self, self.id, self.name)
 
     def data(self):
         data = dict()
@@ -432,7 +432,7 @@ def parse_timestamp(timestamp, format="%Y-%m-%dT%H:%M:%SZ"):
 
     return int(round(dt.timestamp() * 1000))
 
-def _format_repr(obj, *args):
+def format_repr(obj, *args):
     cls = obj.__class__.__name__
     strings = [str(x) for x in args]
     return "{}({})".format(cls, ",".join(strings))
