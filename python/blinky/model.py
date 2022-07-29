@@ -69,7 +69,7 @@ class Model:
         init_globals = {"model": self}
         config = _runpy.run_path(config_file, init_globals)
 
-    def render_data(self):
+    def data(self):
         if self.update_time is None:
             raise Exception("The model isn't updated yet")
 
@@ -86,22 +86,22 @@ class Model:
         jobs_data = data["jobs"] = dict()
 
         for category in self.categories:
-            categories_data[category.id] = category.render_data()
+            categories_data[category.id] = category.data()
 
         for group in self.groups:
-            groups_data[group.id] = group.render_data()
+            groups_data[group.id] = group.data()
 
         for component in self.components:
-            components_data[component.id] = component.render_data()
+            components_data[component.id] = component.data()
 
         for environment in self.environments:
-            environments_data[environment.id] = environment.render_data()
+            environments_data[environment.id] = environment.data()
 
         for agent in self.agents:
-            agents_data[agent.id] = agent.render_data()
+            agents_data[agent.id] = agent.data()
 
         for job in self.jobs:
-            jobs_data[job.id] = job.render_data()
+            jobs_data[job.id] = job.data()
 
         return data
 
@@ -116,7 +116,7 @@ class Model:
 
         self.update_time = _datetime.datetime.now(_datetime.timezone.utc)
 
-        data = self.render_data()
+        data = self.data()
 
         prev_json = self.json or ""
         prev_digest = self.json_digest or "-"
@@ -173,7 +173,7 @@ class ModelObject:
     def __repr__(self):
         return _format_repr(self, self.id, self.name)
 
-    def render_data(self):
+    def data(self):
         data = dict()
         data["id"] = self.id
         data["name"] = self.name
@@ -193,8 +193,8 @@ class Category(ModelObject):
 
         self.groups = list()
 
-    def render_data(self):
-        data = super().render_data()
+    def data(self):
+        data = super().data()
         data["key"] = self.key
         data["group_ids"] = [x.id for x in self.groups]
 
@@ -212,8 +212,8 @@ class Group(ModelObject):
 
         self.category.groups.append(self)
 
-    def render_data(self):
-        data = super().render_data()
+    def data(self):
+        data = super().data()
         data["category_id"] = self.category.id
 
         return data
@@ -244,8 +244,8 @@ class Agent(ModelObject):
     def update(self):
         raise NotImplementedError()
 
-    def render_data(self):
-        data = super().render_data()
+    def data(self):
+        data = super().data()
         data["html_url"] = self.html_url
         data["data_url"] = self.data_url
 
@@ -320,8 +320,8 @@ class Job(ModelObject):
         if len(self.results) >= 2:
             return self.results[-2]
 
-    def render_data(self):
-        data = super().render_data()
+    def data(self):
+        data = super().data()
 
         data["group_id"] = self.group.id
         data["component_id"] = self.component.id
@@ -334,10 +334,10 @@ class Job(ModelObject):
         data["current_result"] = None
 
         if self.previous_result:
-            data["previous_result"] = self.previous_result.render_data()
+            data["previous_result"] = self.previous_result.data()
 
         if self.current_result:
-            data["current_result"] = self.current_result.render_data()
+            data["current_result"] = self.current_result.data()
 
         data["update_failures"] = self.update_failures
 
@@ -354,7 +354,7 @@ class JobResult:
         self.tests_url = None   # Test results
         self.logs_url = None    # Log output
 
-    def render_data(self):
+    def data(self):
         data = dict()
 
         data["number"] = self.number

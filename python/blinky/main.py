@@ -30,35 +30,6 @@ from .model import Model
 
 _log = _logging.getLogger("blinky.main")
 
-class Server(_brbn.Server):
-    def __init__(self, app, host="", port=8080):
-        super().__init__(app, host=host, port=port)
-
-        self.add_route("/api/data", endpoint=DataHandler(), methods=["GET", "HEAD"])
-        self.add_route("/proxy", endpoint=ProxyHandler(), methods=["GET", "HEAD"])
-
-        self.add_static_files("", _os.path.join(self.app.home, "static"))
-
-class DataHandler(_brbn.Handler):
-    async def process(self, request):
-        return request.app.model
-
-    def etag(self, request, model):
-        return model.update_time
-
-    async def render(self, request, model):
-        return _brbn.JsonResponse(model.render_data())
-
-class ProxyHandler(_brbn.Handler):
-    async def process(self, request):
-        url = request.query_params["url"]
-
-        async with _httpx.AsyncClient() as client:
-            return await client.get(url)
-
-    async def render(self, request, proxied_response):
-        return _brbn.Response(proxied_response.text, media_type=proxied_response.headers["content-type"])
-
 _description = "Blinky collects and displays results from CI jobs"
 
 _epilog = """
@@ -107,3 +78,32 @@ class BlinkyCommand:
             self.run()
         except KeyboardInterrupt:
             pass
+
+class Server(_brbn.Server):
+    def __init__(self, app, host="", port=8080):
+        super().__init__(app, host=host, port=port)
+
+        self.add_route("/api/data", endpoint=DataHandler(), methods=["GET", "HEAD"])
+        self.add_route("/proxy", endpoint=ProxyHandler(), methods=["GET", "HEAD"])
+
+        self.add_static_files("", _os.path.join(self.app.home, "static"))
+
+class DataHandler(_brbn.Handler):
+    async def process(self, request):
+        return request.app.model
+
+    def etag(self, request, model):
+        return model.update_time
+
+    async def render(self, request, model):
+        return _brbn.JsonResponse(model.data())
+
+class ProxyHandler(_brbn.Handler):
+    async def process(self, request):
+        url = request.query_params["url"]
+
+        async with _httpx.AsyncClient() as client:
+            return await client.get(url)
+
+    async def render(self, request, proxied_response):
+        return _brbn.Response(proxied_response.text, media_type=proxied_response.headers["content-type"])
