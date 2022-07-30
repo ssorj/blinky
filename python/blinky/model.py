@@ -20,8 +20,9 @@
 import collections as _collections
 import concurrent.futures as _futures
 import datetime as _datetime
-import json as _json
 import hashlib as _hashlib
+import inspect as _inspect
+import json as _json
 import logging as _logging
 import os as _os
 import requests as _requests
@@ -159,12 +160,15 @@ class ModelUpdateThread(_threading.Thread):
             _log.exception("Update failed")
 
 class ModelObject:
+    _single_reference_keys = []
+    _multiple_reference_keys = []
+
     def __init__(self, model, collection, name):
         assert isinstance(model, Model), model
         assert isinstance(collection, list), collection
         assert isinstance(name, (str, type(None))), name
 
-        self.model = model
+        self._model = model
         self.id = len(collection)
         self.name = name
 
@@ -174,65 +178,72 @@ class ModelObject:
         return format_repr(self, self.id, self.name)
 
     def data(self):
-        data = dict()
-        data["id"] = self.id
-        data["name"] = self.name
+        # XXX Use a loop!
 
-        if hasattr(self, "jobs"):
-            data["job_ids"] = [x.id for x in self.jobs]
+        data = {k: v for k, v in _inspect.getmembers(self)
+                if not k.startswith("_")
+                and not _inspect.isroutine(v)
+                and k not in self._single_reference_keys
+                and k not in self._multiple_reference_keys}
+
+        for key in self._single_reference_keys:
+            value = getattr(self, key)
+
+            if value is not None:
+                value = value.id
+
+            data[f"{key}_id"] = value
+
+        for key in self._multiple_reference_keys:
+            data["{}_ids".format(key.removesuffix("s"))] = [x.id for x in getattr(self, key)]
 
         return data
 
 class Category(ModelObject):
+    _multiple_reference_keys = ["groups"]
+
     def __init__(self, model, name, key):
         super().__init__(model, model.categories, name)
 
         assert isinstance(key, str), key
 
         self.key = key
-
         self.groups = list()
 
-    def data(self):
-        data = super().data()
-        data["key"] = self.key
-        data["group_ids"] = [x.id for x in self.groups]
-
-        return data
-
 class Group(ModelObject):
+    _single_reference_keys = ["category"]
+    _multiple_reference_keys = ["jobs"]
+
     def __init__(self, category, name, fields=["agent", "name"]):
-        super().__init__(category.model, category.model.groups, name)
+        super().__init__(category._model, category._model.groups, name)
 
         assert isinstance(category, Category), category
 
         self.category = category
         self.fields = fields
-
         self.jobs = list()
 
         self.category.groups.append(self)
 
-    def data(self):
-        data = super().data()
-        data["category_id"] = self.category.id
-        data["fields"] = self.fields
-
-        return data
-
 class Component(ModelObject):
+    _multiple_reference_keys = ["jobs"]
+
     def __init__(self, model, name):
         super().__init__(model, model.components, name)
 
         self.jobs = list()
 
 class Environment(ModelObject):
+    _multiple_reference_keys = ["jobs"]
+
     def __init__(self, model, name):
         super().__init__(model, model.environments, name)
 
         self.jobs = list()
 
 class Agent(ModelObject):
+    _multiple_reference_keys = ["jobs"]
+
     def __init__(self, model, name):
         super().__init__(model, model.agents, name)
 
@@ -240,22 +251,16 @@ class Agent(ModelObject):
         self.data_url = None
         self.token = None
         self.enabled = True
-
         self.jobs = list()
 
     def update(self):
         raise NotImplementedError()
 
-    def data(self):
-        data = super().data()
-        data["html_url"] = self.html_url
-        data["data_url"] = self.data_url
-
-        return data
-
 class Job(ModelObject):
+    _single_reference_keys = ["group", "agent", "component", "environment"]
+
     def __init__(self, group, component, environment, agent, name):
-        super().__init__(group.model, group.model.jobs, name)
+        super().__init__(group._model, group._model.jobs, name)
 
         assert isinstance(group, Group), group
         assert isinstance(agent, Agent), agent
@@ -275,13 +280,15 @@ class Job(ModelObject):
         self.group.jobs.append(self)
         self.agent.jobs.append(self)
 
+        # XXX RHS if?
         if component is not None:
             self.component.jobs.append(self)
 
         if environment is not None:
             self.environment.jobs.append(self)
 
-        self.runs = _collections.deque(maxlen=2)
+        self.current_run = None
+        self.previous_run = None
         self.update_failures = 0
 
         self.html_url = None
@@ -311,53 +318,18 @@ class Job(ModelObject):
         self.update_failures = 0
 
         if self.current_run and self.current_run.number == run.number:
-            self.runs[-1] = run
+            self.current_run = run
         else:
-            self.runs.append(run)
+            if self.current_run is not None:
+                self.previous_run = self.current_run.data()
+
+            self.current_run = run.data()
 
     def fetch_data(self, context):
         raise NotImplementedError()
 
     def convert_run(self, data):
         raise NotImplementedError()
-
-    @property
-    def current_run(self):
-        if len(self.runs) >= 1:
-            return self.runs[-1]
-
-    @property
-    def previous_run(self):
-        if len(self.runs) >= 2:
-            return self.runs[-2]
-
-    def data(self):
-        data = super().data()
-
-        data["group_id"] = self.group.id
-        data["agent_id"] = self.agent.id
-        data["branch"] = self.branch
-        data["html_url"] = self.html_url
-        data["data_url"] = self.data_url
-
-        if self.component is not None:
-            data["component_id"] = self.component.id
-
-        if self.environment is not None:
-            data["environment_id"] = self.environment.id
-
-        data["previous_run"] = None
-        data["current_run"] = None
-
-        if self.previous_run:
-            data["previous_run"] = self.previous_run.data()
-
-        if self.current_run:
-            data["current_run"] = self.current_run.data()
-
-        data["update_failures"] = self.update_failures
-
-        return data
 
 class JobRun:
     def __init__(self):
@@ -371,18 +343,7 @@ class JobRun:
         self.logs_url = None    # Log output
 
     def data(self):
-        data = dict()
-
-        data["number"] = self.number
-        data["status"] = self.status
-        data["start_time"] = self.start_time
-        data["duration"] = self.duration
-        data["html_url"] = self.html_url
-        data["data_url"] = self.data_url
-        data["tests_url"] = self.tests_url
-        data["logs_url"] = self.logs_url
-
-        return data
+        return {k: v for k, v in _inspect.getmembers(self) if not k.startswith("__") and not _inspect.isroutine(v)}
 
 class HttpAgent(Agent):
     def update(self):
