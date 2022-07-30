@@ -88,7 +88,7 @@ class Model:
     def update(self):
         _log.info("Updating jobs".format(self))
 
-        futures = [self.executor.submit(x.update) for x in self.agents if x.enabled]
+        futures = [self.executor.submit(x.update) for x in self.agents if x._enabled]
 
         for future in _futures.as_completed(futures):
             if future.exception() is not None:
@@ -217,14 +217,15 @@ class Environment(ModelObject):
 class Agent(ModelObject):
     _reference_collections = ["jobs"]
 
-    def __init__(self, model, name):
+    def __init__(self, model, name, enabled=True, token=None):
         super().__init__(model, model.agents, name)
 
         self.html_url = None
         self.data_url = None
-        self.token = None
-        self.enabled = True
         self.jobs = list()
+
+        self._enabled = enabled
+        self._token = token
 
     def update(self):
         raise NotImplementedError()
@@ -327,8 +328,8 @@ class HttpAgent(Agent):
 
 class HttpJob(Job):
     def fetch_data(self, session, headers={}):
-        if self.agent.token:
-            headers["Authorization"] = f"token {self.agent.token}"
+        if self.agent._token:
+            headers["Authorization"] = f"token {self.agent._token}"
 
         url = self.data_url
 

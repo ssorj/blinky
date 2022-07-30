@@ -34,11 +34,10 @@ class TravisCiAgent(HttpAgent):
                  html_url="https://travis-ci.com",
                  data_url="https://api.travis-ci.com",
                  token=None):
-        super().__init__(model, name)
+        super().__init__(model, name, token=token)
 
         self.html_url = html_url
         self.data_url = data_url
-        self.token = token
 
 class TravisCiJob(HttpJob):
     def __init__(self, group, agent, repo, branch,
