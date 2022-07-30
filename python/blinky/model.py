@@ -37,6 +37,8 @@ PASSED = "PASSED"
 FAILED = "FAILED"
 
 class Model:
+    _collections = ["categories", "groups", "components", "environments", "agents", "jobs"]
+
     def __init__(self):
         self.title = "Blinky"
 
@@ -45,12 +47,8 @@ class Model:
 
         self.executor = _futures.ThreadPoolExecutor()
 
-        self.categories = list()
-        self.groups = list()
-        self.components = list()
-        self.environments = list()
-        self.agents = list()
-        self.jobs = list()
+        for name in self._collections:
+            setattr(self, name, list())
 
         self.json = None
         self.json_digest = None
@@ -79,30 +77,11 @@ class Model:
             "update_time": int(round(self.update_time.timestamp() * 1000)),
         }
 
-        categories_data = data["categories"] = dict()
-        groups_data = data["groups"] = dict()
-        components_data = data["components"] = dict()
-        environments_data = data["environments"] = dict()
-        agents_data = data["agents"] = dict()
-        jobs_data = data["jobs"] = dict()
+        for name in self._collections:
+            data[name] = dict()
 
-        for category in self.categories:
-            categories_data[category.id] = category.data()
-
-        for group in self.groups:
-            groups_data[group.id] = group.data()
-
-        for component in self.components:
-            components_data[component.id] = component.data()
-
-        for environment in self.environments:
-            environments_data[environment.id] = environment.data()
-
-        for agent in self.agents:
-            agents_data[agent.id] = agent.data()
-
-        for job in self.jobs:
-            jobs_data[job.id] = job.data()
+            for item in getattr(self, name):
+                data[name][item.id] = item.data()
 
         return data
 
@@ -160,8 +139,8 @@ class ModelUpdateThread(_threading.Thread):
             _log.exception("Update failed")
 
 class ModelObject:
-    _single_reference_keys = []
-    _multiple_reference_keys = []
+    _references = []
+    _reference_collections = []
 
     def __init__(self, model, collection, name):
         assert isinstance(model, Model), model
@@ -178,29 +157,26 @@ class ModelObject:
         return format_repr(self, self.id, self.name)
 
     def data(self):
-        # XXX Use a loop!
+        data = dict()
 
-        data = {k: v for k, v in _inspect.getmembers(self)
-                if not k.startswith("_")
-                and not _inspect.isroutine(v)
-                and k not in self._single_reference_keys
-                and k not in self._multiple_reference_keys}
+        for key, value in _inspect.getmembers(self):
+            if key.startswith("_") or _inspect.isroutine(value):
+                continue
 
-        for key in self._single_reference_keys:
-            value = getattr(self, key)
+            if key in self._references:
+                if value is not None:
+                    value = value.id
 
-            if value is not None:
-                value = value.id
-
-            data[f"{key}_id"] = value
-
-        for key in self._multiple_reference_keys:
-            data["{}_ids".format(key.removesuffix("s"))] = [x.id for x in getattr(self, key)]
+                data[f"{key}_id"] = value
+            elif key in self._reference_collections:
+                data["{}_ids".format(key.removesuffix("s"))] = [x.id for x in getattr(self, key)]
+            else:
+                data[key] = value
 
         return data
 
 class Category(ModelObject):
-    _multiple_reference_keys = ["groups"]
+    _reference_collections = ["groups"]
 
     def __init__(self, model, name, key):
         super().__init__(model, model.categories, name)
@@ -211,8 +187,8 @@ class Category(ModelObject):
         self.groups = list()
 
 class Group(ModelObject):
-    _single_reference_keys = ["category"]
-    _multiple_reference_keys = ["jobs"]
+    _references = ["category"]
+    _reference_collections = ["jobs"]
 
     def __init__(self, category, name, fields=["agent", "name"]):
         super().__init__(category._model, category._model.groups, name)
@@ -226,7 +202,7 @@ class Group(ModelObject):
         self.category.groups.append(self)
 
 class Component(ModelObject):
-    _multiple_reference_keys = ["jobs"]
+    _reference_collections = ["jobs"]
 
     def __init__(self, model, name):
         super().__init__(model, model.components, name)
@@ -234,7 +210,7 @@ class Component(ModelObject):
         self.jobs = list()
 
 class Environment(ModelObject):
-    _multiple_reference_keys = ["jobs"]
+    _reference_collections = ["jobs"]
 
     def __init__(self, model, name):
         super().__init__(model, model.environments, name)
@@ -242,7 +218,7 @@ class Environment(ModelObject):
         self.jobs = list()
 
 class Agent(ModelObject):
-    _multiple_reference_keys = ["jobs"]
+    _reference_collections = ["jobs"]
 
     def __init__(self, model, name):
         super().__init__(model, model.agents, name)
@@ -257,7 +233,7 @@ class Agent(ModelObject):
         raise NotImplementedError()
 
 class Job(ModelObject):
-    _single_reference_keys = ["group", "agent", "component", "environment"]
+    _references = ["group", "agent", "component", "environment"]
 
     def __init__(self, group, component, environment, agent, name):
         super().__init__(group._model, group._model.jobs, name)
@@ -280,11 +256,10 @@ class Job(ModelObject):
         self.group.jobs.append(self)
         self.agent.jobs.append(self)
 
-        # XXX RHS if?
-        if component is not None:
+        if self.component is not None:
             self.component.jobs.append(self)
 
-        if environment is not None:
+        if self.environment is not None:
             self.environment.jobs.append(self)
 
         self.current_run = None
