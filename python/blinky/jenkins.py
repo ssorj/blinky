@@ -37,10 +37,12 @@ class JenkinsAgent(HttpAgent):
         self.data_url = f"{self.html_url}/api/json"
 
 class JenkinsJob(HttpJob):
-    def __init__(self, model, group, component, environment, agent, name, slug):
-        super().__init__(model, group, component, environment, agent, name)
+    def __init__(self, group, agent, slug, branch,
+                 component=None, environment=None, name=None):
+        super().__init__(group, component, environment, agent, name)
 
         self.slug = slug
+        self.branch = branch
 
         self.html_url = f"{self.agent.html_url}/job/{self.slug}"
         self.data_url = f"{self.html_url}/api/json?{_rest_api_qs}"

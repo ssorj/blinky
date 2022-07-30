@@ -36,8 +36,9 @@ class AppVeyorAgent(HttpAgent):
         self.data_url = "https://ci.appveyor.com"
 
 class AppVeyorJob(HttpJob):
-    def __init__(self, model, group, component, environment, agent, name, account, project, branch):
-        super().__init__(model, group, component, environment, agent, name)
+    def __init__(self, group, agent, account, project, branch,
+                 component=None, environment=None, name=None):
+        super().__init__(group, component, environment, agent, name)
 
         self.account = account
         self.project = project

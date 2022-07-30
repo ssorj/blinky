@@ -201,12 +201,13 @@ class Category(ModelObject):
         return data
 
 class Group(ModelObject):
-    def __init__(self, model, category, name):
-        super().__init__(model, model.groups, name)
+    def __init__(self, category, name, fields=["agent", "name"]):
+        super().__init__(category.model, category.model.groups, name)
 
         assert isinstance(category, Category), category
 
         self.category = category
+        self.fields = fields
 
         self.jobs = list()
 
@@ -215,6 +216,7 @@ class Group(ModelObject):
     def data(self):
         data = super().data()
         data["category_id"] = self.category.id
+        data["fields"] = self.fields
 
         return data
 
@@ -252,23 +254,32 @@ class Agent(ModelObject):
         return data
 
 class Job(ModelObject):
-    def __init__(self, model, group, component, environment, agent, name):
-        super().__init__(model, model.jobs, name)
+    def __init__(self, group, component, environment, agent, name):
+        super().__init__(group.model, group.model.jobs, name)
 
         assert isinstance(group, Group), group
-        assert isinstance(component, Component), component
-        assert isinstance(environment, Environment), environment
         assert isinstance(agent, Agent), agent
 
+        if component is not None:
+            assert isinstance(component, Component), component
+
+        if environment is not None:
+            assert isinstance(environment, Environment), environment
+
         self.group = group
+        self.agent = agent
+        self.branch = None
         self.component = component
         self.environment = environment
-        self.agent = agent
 
         self.group.jobs.append(self)
-        self.component.jobs.append(self)
-        self.environment.jobs.append(self)
         self.agent.jobs.append(self)
+
+        if component is not None:
+            self.component.jobs.append(self)
+
+        if environment is not None:
+            self.environment.jobs.append(self)
 
         self.runs = _collections.deque(maxlen=2)
         self.update_failures = 0
@@ -324,11 +335,16 @@ class Job(ModelObject):
         data = super().data()
 
         data["group_id"] = self.group.id
-        data["component_id"] = self.component.id
-        data["environment_id"] = self.environment.id
         data["agent_id"] = self.agent.id
+        data["branch"] = self.branch
         data["html_url"] = self.html_url
         data["data_url"] = self.data_url
+
+        if self.component is not None:
+            data["component_id"] = self.component.id
+
+        if self.environment is not None:
+            data["environment_id"] = self.environment.id
 
         data["previous_run"] = None
         data["current_run"] = None

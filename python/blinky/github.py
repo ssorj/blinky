@@ -38,21 +38,16 @@ class GitHubAgent(HttpAgent):
         self.token = token
 
 class GitHubJob(HttpJob):
-    def __init__(self, model, group, component, environment, agent, name, repo, branch, workflow_name, workflow_id):
-        super().__init__(model, group, component, environment, agent, name)
+    def __init__(self, group, agent, repo, branch, workflow_id,
+                 component=None, environment=None, name=None):
+        super().__init__(group, component, environment, agent, name)
 
         self.repo = repo
         self.branch = branch
-        self.workflow_name = workflow_name
         self.workflow_id = workflow_id
 
-        escaped_name = _parse.quote(self.workflow_name)
-
-        if " " in self.workflow_name:
-            escaped_name = f"\"{escaped_name}\""
-
-        self.html_url = f"{self.agent.html_url}/{self.repo}/actions?query=workflow%3A{escaped_name}"
-        self.data_url = f"{self.agent.data_url}/repos/{self.repo}/actions/workflows/{self.workflow_id}/runs?branch={self.branch}"
+        self.html_url = f"{self.agent.html_url}/{self.repo}/actions/workflows/{self.workflow_id}"
+        self.data_url = f"{self.agent.data_url}/repos/{self.repo}/actions/workflows/{self.workflow_id}/runs?branch={self.branch}&per_page=1"
 
     def convert_run(self, data):
         try:

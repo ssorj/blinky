@@ -161,23 +161,15 @@ div.job.blinky a.job-summary {
 }
 
 a.job-summary > * {
-    font-size: 0.85em;
+    font-size: 0.9em;
     margin: 0.2em 0;
     line-height: 1.1em;
 }
 
-div.summary-component {
-    font-size: 0.9em;
+a.job-summary > *:first-child {
+    font-size: 0.95em;
     font-weight: 500;
 }
-
-/*
-div.summary-job, div.summary-agent, div.summary-environment, div.summary-start-time {
-    font-size: 0.85em;
-    margin: 0.15em 0;
-    line-height: 1.2em;
-}
-*/
 
 div.job-detail {
     display: none;

@@ -216,22 +216,36 @@ class Blinky {
     renderJob(parent, job) {
         let elem = gesso.createDiv(parent, "job");
 
-        let component = this.state.data.components[job.component_id];
-        let agent = this.state.data.agents[job.agent_id];
-        let environment = this.state.data.environments[job.environment_id];
-        let currRun = job.current_run;
-        let prevRun = job.previous_run;
+        function getName(obj) {
+            if (obj != null) {
+                return obj.name;
+            }
+        }
+
+        function capitalize(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+
+        const fields = {
+            "name": job.name,
+            "branch": capitalize(job.branch),
+            "agent": getName(this.state.data.agents[job.agent_id]),
+            "component": getName(this.state.data.components[job.component_id]),
+            "environment": getName(this.state.data.environments[job.environment_id]),
+        }
 
         let summary = gesso.createLink(elem, job.html_url, {"class": "job-summary"});
 
-        gesso.createDiv(summary, "summary-component", component.name);
+        const group = this.state.data.groups[job.group_id];
 
-        if (job.name != null) {
-            gesso.createDiv(summary, "summary-job", job.name);
+        for (const name of group.fields) {
+            if (fields[name] != null) {
+                gesso.createDiv(summary, null, fields[name]);
+            }
         }
 
-        gesso.createDiv(summary, "summary-agent", agent.name);
-        gesso.createDiv(summary, "summary-environment", environment.name);
+        let currRun = job.current_run;
+        let prevRun = job.previous_run;
 
         if (currRun == null) {
             elem.classList.add("no-data");
@@ -286,8 +300,14 @@ class Blinky {
         let tbody = gesso.createElement(table, "tbody");
         let td;
 
-        this.createJobDetailField(tbody, "Component", component.name);
-        this.createJobDetailField(tbody, "Environment", environment.name);
+        // XXX
+        if (component != null) {
+            this.createJobDetailField(tbody, "Component", component.name);
+        }
+
+        if (environment != null) {
+            this.createJobDetailField(tbody, "Environment", environment.name);
+        }
 
         td = this.createJobDetailField(tbody, "Agent");
         this.createObjectLink(td, agent);
@@ -305,7 +325,7 @@ class Blinky {
 
             let duration = gesso.formatDurationBrief(currRun.duration);
 
-            td = this.createJobDetailField(tbody, "Number");
+            td = this.createJobDetailField(tbody, "Run");
             this.createObjectLink(td, currRun, currRun.number);
 
             this.createJobDetailField(tbody, "Time", ago);
@@ -378,8 +398,18 @@ class Blinky {
             let prevRun = job.previous_run;
 
             let tr = gesso.createElement(tbody, "tr");
-            gesso.createElement(tr, "td", component.name);
-            gesso.createElement(tr, "td", environment.name);
+
+            if (component != null) {
+                gesso.createElement(tr, "td", component.name);
+            } else {
+                gesso.createElement(tr, "td", "-");
+            }
+
+            if (environment != null) {
+                gesso.createElement(tr, "td", environment.name);
+            } else {
+                gesso.createElement(tr, "td", "-");
+            }
 
             let td;
 

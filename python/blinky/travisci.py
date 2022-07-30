@@ -41,8 +41,9 @@ class TravisCiAgent(HttpAgent):
         self.token = token
 
 class TravisCiJob(HttpJob):
-    def __init__(self, model, group, component, environment, agent, name, repo, branch):
-        super().__init__(model, group, component, environment, agent, name)
+    def __init__(self, group, agent, repo, branch,
+                 component=None, environment=None, name=None):
+        super().__init__(group, component, environment, agent, name)
 
         self.repo = repo
         self.branch = branch
