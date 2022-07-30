@@ -164,10 +164,7 @@ class ModelObject:
                 continue
 
             if key in self._references:
-                if value is not None:
-                    value = value.id
-
-                data[f"{key}_id"] = value
+                data[f"{key}_id"] = value.id if value is not None else None
             elif key in self._reference_collections:
                 data["{}_ids".format(key.removesuffix("s"))] = [x.id for x in getattr(self, key)]
             else:
@@ -240,12 +237,8 @@ class Job(ModelObject):
 
         assert isinstance(group, Group), group
         assert isinstance(agent, Agent), agent
-
-        if component is not None:
-            assert isinstance(component, Component), component
-
-        if environment is not None:
-            assert isinstance(environment, Environment), environment
+        assert component is None or isinstance(component, Component), component
+        assert environment is None or isinstance(environment, Environment), environment
 
         self.group = group
         self.agent = agent
