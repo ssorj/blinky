@@ -39,6 +39,14 @@ class TravisCiAgent(HttpAgent):
         self.html_url = html_url
         self.data_url = data_url
 
+    def update(self):
+        headers = {
+            "User-Agent": "Blinky/0.1",
+            "Accept": "application/vnd.travis-ci.2+json",
+        }
+
+        return super().fetch_data(session, headers=headers)
+
 class TravisCiJob(HttpJob):
     def __init__(self, group, agent, repo, branch,
                  component=None, environment=None, name=None):
@@ -49,14 +57,6 @@ class TravisCiJob(HttpJob):
 
         self.html_url = f"{self.agent.html_url}/{self.repo}/branches"
         self.data_url = f"{self.agent.data_url}/repos/{self.repo}/branches/{self.branch}"
-
-    def fetch_data(self, session):
-        headers = {
-            "User-Agent": "Blinky/0.1",
-            "Accept": "application/vnd.travis-ci.2+json",
-        }
-
-        return super().fetch_data(session, headers)
 
     def convert_run(self, data):
         data = data["branch"]

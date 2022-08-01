@@ -21,11 +21,11 @@ import collections as _collections
 import concurrent.futures as _futures
 import datetime as _datetime
 import hashlib as _hashlib
+import httpx as _httpx
 import inspect as _inspect
 import json as _json
 import logging as _logging
 import os as _os
-import requests as _requests
 import runpy as _runpy
 import sched as _sched
 import threading as _threading
@@ -97,7 +97,6 @@ class Model:
         self.update_time = _datetime.datetime.now(_datetime.timezone.utc)
 
         data = self.data()
-
         prev_json = self.json or ""
         prev_digest = self.json_digest or "-"
 
@@ -312,25 +311,25 @@ class JobRun:
         self.logs_url = None    # Log output
 
     def data(self):
-        return {k: v for k, v in _inspect.getmembers(self) if not k.startswith("__") and not _inspect.isroutine(v)}
+        return {k: v for k, v in _inspect.getmembers(self) if not k.startswith("_") and not _inspect.isroutine(v)}
 
 class HttpAgent(Agent):
-    def update(self):
+    def update(self, headers={}):
         start = _time.time()
 
-        with _requests.Session() as session:
+        if self._token:
+            headers["Authorization"] = f"token {self._token}"
+
+        with _httpx.Client(headers=headers) as client:
             for job in self.jobs:
-                job.update(session)
+                job.update(client)
 
         elapsed = _time.time() - start
 
         _log.info("{} updated {} jobs in {:.2f}s".format(self, len(self.jobs), elapsed))
 
 class HttpJob(Job):
-    def fetch_data(self, session, headers={}):
-        if self.agent._token:
-            headers["Authorization"] = f"token {self.agent._token}"
-
+    def fetch_data(self, client):
         url = self.data_url
 
         if self.fetch_url is not None:
@@ -339,10 +338,10 @@ class HttpJob(Job):
         try:
             _log.debug("Fetching data from {}".format(url))
 
-            response = session.get(url, headers=headers, timeout=5)
-        except _requests.exceptions.ConnectionError:
+            response = client.get(url)
+        except _httpx.TransportError:
             raise
-        except _requests.exceptions.RequestException as e:
+        except _httpx.RequestError as e:
             self.log_request_error(str(e), url, headers, None)
             return
 
