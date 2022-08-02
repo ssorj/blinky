@@ -17,8 +17,8 @@
 # under the License.
 #
 
+import asyncio as _asyncio
 import collections as _collections
-import concurrent.futures as _futures
 import datetime as _datetime
 import hashlib as _hashlib
 import httpx as _httpx
@@ -28,7 +28,6 @@ import logging as _logging
 import os as _os
 import runpy as _runpy
 import sched as _sched
-import threading as _threading
 import time as _time
 
 _log = _logging.getLogger("blinky.model")
@@ -41,17 +40,12 @@ class Model:
 
     def __init__(self):
         self.title = "Blinky"
-
-        self.update_thread = ModelUpdateThread(self)
         self.update_time = None
-
-        self.executor = _futures.ThreadPoolExecutor()
+        self.json = None
+        self.json_digest = None
 
         for name in self._collections:
             setattr(self, name, list())
-
-        self.json = None
-        self.json_digest = None
 
     def __repr__(self):
         return format_repr(self)
@@ -85,14 +79,15 @@ class Model:
 
         return data
 
-    def update(self):
+    async def update(self):
         _log.info("Updating jobs".format(self))
 
-        futures = [self.executor.submit(x.update) for x in self.agents if x._enabled]
+        coros = [x.update() for x in self.agents if x._enabled]
+        results = await _asyncio.gather(*coros, return_exceptions=True)
 
-        for future in _futures.as_completed(futures):
-            if future.exception() is not None:
-                _log.error("Failure updating: {}".format(future.exception()))
+        for error in results:
+            if error is not None:
+                _log.error(error)
 
         self.update_time = _datetime.datetime.now(_datetime.timezone.utc)
 
@@ -107,35 +102,6 @@ class Model:
         _log.debug("Curr json: {} {}".format(self.json_digest, len(self.json)))
 
         _log.info("Updated at {}".format(self.update_time))
-
-class ModelUpdateThread(_threading.Thread):
-    def __init__(self, model):
-        super().__init__()
-
-        self.model = model
-        self.name = "ModelUpdateThread"
-        self.daemon = True
-
-        self.scheduler = _sched.scheduler()
-
-    def start(self):
-        _log.info("Starting update thread")
-
-        super().start()
-
-    def run(self):
-        self.update_model()
-        self.scheduler.run()
-
-    def update_model(self):
-        self.scheduler.enter(20 * 60, 1, self.update_model)
-
-        try:
-            self.model.update()
-        except KeyboardInterrupt:
-            raise
-        except:
-            _log.exception("Update failed")
 
 class ModelObject:
     _references = []
@@ -155,11 +121,11 @@ class ModelObject:
     def __repr__(self):
         return format_repr(self, self.id, self.name)
 
-    def data(self):
+    def data(self, exclude=()):
         data = dict()
 
         for key, value in _inspect.getmembers(self):
-            if key.startswith("_") or _inspect.isroutine(value):
+            if key.startswith("_") or _inspect.isroutine(value) or key in exclude:
                 continue
 
             if key in self._references:
@@ -226,7 +192,7 @@ class Agent(ModelObject):
         self._enabled = enabled
         self._token = token
 
-    def update(self):
+    async def update(self):
         raise NotImplementedError()
 
 class Job(ModelObject):
@@ -263,8 +229,19 @@ class Job(ModelObject):
         self.data_url = None
         self.fetch_url = None
 
-    def update(self, context):
-        data = self.fetch_data(context)
+    def data(self):
+        data = super().data(exclude=("current_run", "previous_run"))
+
+        if self.current_run is not None:
+            data["current_run"] = self.current_run.data()
+
+        if self.previous_run is not None:
+            data["previous_run"] = self.previous_run.data()
+
+        return data
+
+    async def update(self, context):
+        data = await self.fetch_data(context)
 
         if data is None:
             self.update_failures += 1
@@ -289,11 +266,11 @@ class Job(ModelObject):
             self.current_run = run
         else:
             if self.current_run is not None:
-                self.previous_run = self.current_run.data()
+                self.previous_run = self.current_run
 
-            self.current_run = run.data()
+            self.current_run = run
 
-    def fetch_data(self, context):
+    async def fetch_data(self, context):
         raise NotImplementedError()
 
     def convert_run(self, data):
@@ -314,22 +291,22 @@ class JobRun:
         return {k: v for k, v in _inspect.getmembers(self) if not k.startswith("_") and not _inspect.isroutine(v)}
 
 class HttpAgent(Agent):
-    def update(self, headers={}):
+    async def update(self, headers={}):
         start = _time.time()
 
         if self._token:
             headers["Authorization"] = f"token {self._token}"
 
-        with _httpx.Client(headers=headers) as client:
+        async with _httpx.AsyncClient(headers=headers) as client:
             for job in self.jobs:
-                job.update(client)
+                await job.update(client)
 
         elapsed = _time.time() - start
 
         _log.info("{} updated {} jobs in {:.2f}s".format(self, len(self.jobs), elapsed))
 
 class HttpJob(Job):
-    def fetch_data(self, client):
+    async def fetch_data(self, client):
         url = self.data_url
 
         if self.fetch_url is not None:
@@ -338,7 +315,7 @@ class HttpJob(Job):
         try:
             _log.debug("Fetching data from {}".format(url))
 
-            response = client.get(url)
+            response = await client.get(url)
         except _httpx.TransportError:
             raise
         except _httpx.RequestError as e:
@@ -380,4 +357,5 @@ def parse_timestamp(timestamp, format="%Y-%m-%dT%H:%M:%SZ"):
 def format_repr(obj, *args):
     cls = obj.__class__.__name__
     strings = [str(x) for x in args]
+
     return "{}({})".format(cls, ",".join(strings))

@@ -30,12 +30,12 @@ from starlette.responses import *
 _log = _logging.getLogger("brbn")
 
 class Server:
-    def __init__(self, app, host="", port=8080):
+    def __init__(self, app, host="", port=8080, lifespan=None):
         self.app = app
         self.host = host
         self.port = port
 
-        self.router = Router(self.app)
+        self.router = Router(self.app, lifespan=lifespan)
 
     def add_route(self, *args, **kwargs):
         self.router.add_route(*args, **kwargs)
@@ -47,8 +47,8 @@ class Server:
         _uvicorn.run(self.router, host=self.host, port=self.port, log_level="info")
 
 class Router(_routing.Router):
-    def __init__(self, app):
-        super().__init__()
+    def __init__(self, app, lifespan=None):
+        super().__init__(lifespan=lifespan)
         self.app = app
 
     async def __call__(self, scope, receive, send):

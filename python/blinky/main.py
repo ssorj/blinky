@@ -18,12 +18,14 @@
 #
 
 import argparse as _argparse
+import asyncio as _asyncio
 import brbn2 as _brbn
 import httpx as _httpx
 import logging as _logging
 import os as _os
 import runpy as _runpy
 import sys as _sys
+import time as _time
 import uuid as _uuid
 
 from .model import Model
@@ -67,8 +69,6 @@ class BlinkyCommand:
         if args.init_only:
             return
 
-        self.model.update_thread.start()
-
         server.run()
 
     def main(self):
@@ -81,12 +81,30 @@ class BlinkyCommand:
 
 class Server(_brbn.Server):
     def __init__(self, app, host="", port=8080):
-        super().__init__(app, host=host, port=port)
+        super().__init__(app, host=host, port=port, lifespan=ModelUpdateTask)
 
         self.add_route("/api/data", endpoint=DataHandler(), methods=["GET", "HEAD"])
         self.add_route("/proxy", endpoint=ProxyHandler(), methods=["GET", "HEAD"])
 
         self.add_static_files("", _os.path.join(self.app.home, "static"))
+
+class ModelUpdateTask():
+    def __init__(self, app):
+        self.app = app
+
+    async def __aenter__(self):
+        _asyncio.get_event_loop().create_task(self.update())
+
+    async def __aexit__(self, exc_type, exc, exc_tb):
+        pass
+
+    async def update(self):
+        while True:
+            start = _time.time()
+            await self.app.model.update()
+            elapsed = _time.time() - start
+
+            await _asyncio.sleep(max(0, 20 * 60 - elapsed))
 
 class DataHandler(_brbn.Handler):
     async def process(self, request):

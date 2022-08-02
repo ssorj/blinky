@@ -1,3 +1,3 @@
 pip install starlette
-pip install uvicorn
+pip install "uvicorn[standard]"
 pip install httpx

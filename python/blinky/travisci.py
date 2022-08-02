@@ -39,13 +39,13 @@ class TravisCiAgent(HttpAgent):
         self.html_url = html_url
         self.data_url = data_url
 
-    def update(self):
+    async def update(self):
         headers = {
             "User-Agent": "Blinky/0.1",
             "Accept": "application/vnd.travis-ci.2+json",
         }
 
-        return super().fetch_data(session, headers=headers)
+        return await super().update(headers=headers)
 
 class TravisCiJob(HttpJob):
     def __init__(self, group, agent, repo, branch,
