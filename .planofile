@@ -38,7 +38,7 @@ def run_(app):
     build(app)
 
     with project_env():
-        run("blinky")
+        run("blinky --config misc/config.py")
 
 @command
 def build_image(app, clean=False):

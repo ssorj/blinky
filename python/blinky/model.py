@@ -82,12 +82,7 @@ class Model:
     async def update(self):
         _log.info("Updating jobs".format(self))
 
-        coros = [x.update() for x in self.agents if x._enabled]
-        results = await _asyncio.gather(*coros, return_exceptions=True)
-
-        for error in results:
-            if error is not None:
-                _log.error(error)
+        await _asyncio.gather(*[x.update() for x in self.agents if x._enabled])
 
         self.update_time = _datetime.datetime.now(_datetime.timezone.utc)
 
@@ -298,12 +293,11 @@ class HttpAgent(Agent):
             headers["Authorization"] = f"token {self._token}"
 
         async with _httpx.AsyncClient(headers=headers) as client:
-            for job in self.jobs:
-                await job.update(client)
+            start = _time.time()
+            await _asyncio.gather(*[x.update(client) for x in self.jobs])
+            elapsed = _time.time() - start
 
-        elapsed = _time.time() - start
-
-        _log.info("{} updated {} jobs in {:.2f}s".format(self, len(self.jobs), elapsed))
+            _log.info("{} updated {} jobs in {:.2f}s".format(self, len(self.jobs), elapsed))
 
 class HttpJob(Job):
     async def fetch_data(self, client):
@@ -312,38 +306,32 @@ class HttpJob(Job):
         if self.fetch_url is not None:
             url = self.fetch_url
 
+        _log.debug("Fetching data from {}".format(url))
+
         try:
-            _log.debug("Fetching data from {}".format(url))
-
             response = await client.get(url)
-        except _httpx.TransportError:
-            raise
         except _httpx.RequestError as e:
-            self.log_request_error(str(e), url, headers, None)
-            return
+            self.log_request_error(e, url, None)
+        except Exception as e:
+            _log.warn("{}: {}: {}".format(e.__class__.__name__, e, url))
+        else:
+            if response.status_code != 200:
+                self.log_request_error(response.status_code, url, response)
+                return
 
-        if response.status_code != 200:
-            message = str(response.status_code)
-            self.log_request_error(message, url, headers, response)
-            return
+            return response.json()
 
-        return response.json()
-
-    def log_request_error(self, message, url, headers, response):
-        _log.warn("HTTP request error: {}".format(message))
-        _log.warn("Request URL:        {}".format(url))
-
-        if headers is not None:
-            _log.warn("Request headers:    {}".format(headers))
+    def log_request_error(self, message, url, response):
+        _log.warn("Request error:    {}".format(message))
+        _log.warn("Request URL:      {}".format(url))
 
         if response is not None:
-            _log.warn("Response code:      {}".format(response.status_code))
-            _log.warn("Response headers:   {}".format(response.headers))
+            _log.warn("Response headers: {}".format(response.headers))
 
             if response.status_code == 500:
-                _log.warn("Response text:      {}".format(response.text))
+                _log.warn("Response text:    {}".format(response.text))
             else:
-                _log.debug("Response text:      {}".format(response.text))
+                _log.debug("Response text:    {}".format(response.text))
 
 def parse_timestamp(timestamp, format="%Y-%m-%dT%H:%M:%SZ"):
     if timestamp is None:

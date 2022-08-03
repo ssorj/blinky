@@ -44,7 +44,7 @@ class Server:
         self.router.mount(path, app=_staticfiles.StaticFiles(directory=dir, html=True))
 
     def run(self):
-        _uvicorn.run(self.router, host=self.host, port=self.port, log_level="info")
+        _uvicorn.run(self.router, host=self.host, port=self.port)
 
 class Router(_routing.Router):
     def __init__(self, app, lifespan=None):

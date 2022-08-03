@@ -72,7 +72,8 @@ class BlinkyCommand:
         server.run()
 
     def main(self):
-        _logging.basicConfig(level=_logging.INFO)
+        _logging.basicConfig(level=_logging.ERROR)
+        _logging.getLogger("blinky").setLevel(_logging.INFO)
 
         try:
             self.run()
@@ -104,7 +105,7 @@ class ModelUpdateTask():
             await self.app.model.update()
             elapsed = _time.time() - start
 
-            await _asyncio.sleep(max(0, 20 * 60 - elapsed))
+            await _asyncio.sleep(max(0, 30 * 60 - elapsed))
 
 class DataHandler(_brbn.Handler):
     async def process(self, request):
