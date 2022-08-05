@@ -37,15 +37,18 @@ class GitHubAgent(HttpAgent):
         self.data_url = "https://api.github.com"
 
 class GitHubJob(HttpJob):
-    def __init__(self, group, agent, repo, branch, workflow_id,
-                 component=None, environment=None, name=None):
-        super().__init__(group, component, environment, agent, name)
+    def __init__(self, agent, group, repo, branch, workflow_id, name=None, variant=None):
+        super().__init__(agent, group, name=name, variant=variant)
 
         self.repo = repo
         self.branch = branch
         self.workflow_id = workflow_id
 
         self.html_url = f"{self.agent.html_url}/{self.repo}/actions/workflows/{self.workflow_id}"
+
+        # self.data_url = ""
+        # self.run_data_url = f"{self.agent.data_url}/repos/{self.repo}/actions/workflows/{self.workflow_id}/runs?branch={self.branch}&per_page=1"
+
         self.data_url = f"{self.agent.data_url}/repos/{self.repo}/actions/workflows/{self.workflow_id}/runs?branch={self.branch}&per_page=1"
 
     def convert_run(self, data):
@@ -54,12 +57,13 @@ class GitHubJob(HttpJob):
         except IndexError:
             raise Exception("No data!")
 
+        if self.name is None:
+            self.name = data["name"]
+
         status = data["conclusion"]
         status = _status_mapping.get(status, status)
 
         start_time = parse_timestamp(data["created_at"])
-
-        end_time = None
         duration = None
 
         if data["status"] == "completed":

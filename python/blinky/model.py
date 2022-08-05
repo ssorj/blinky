@@ -36,7 +36,7 @@ PASSED = "PASSED"
 FAILED = "FAILED"
 
 class Model:
-    _collections = ["categories", "groups", "components", "environments", "agents", "jobs"]
+    _collections = ["categories", "groups", "agents", "jobs"]
 
     def __init__(self):
         self.title = "Blinky"
@@ -147,7 +147,7 @@ class Group(ModelObject):
     _references = ["category"]
     _reference_collections = ["jobs"]
 
-    def __init__(self, category, name, fields=["agent", "name"]):
+    def __init__(self, category, name, fields=["agent", "name", "variant"]):
         super().__init__(category._model, category._model.groups, name)
 
         assert isinstance(category, Category), category
@@ -157,22 +157,6 @@ class Group(ModelObject):
         self.jobs = list()
 
         self.category.groups.append(self)
-
-class Component(ModelObject):
-    _reference_collections = ["jobs"]
-
-    def __init__(self, model, name):
-        super().__init__(model, model.components, name)
-
-        self.jobs = list()
-
-class Environment(ModelObject):
-    _reference_collections = ["jobs"]
-
-    def __init__(self, model, name):
-        super().__init__(model, model.environments, name)
-
-        self.jobs = list()
 
 class Agent(ModelObject):
     _reference_collections = ["jobs"]
@@ -191,30 +175,20 @@ class Agent(ModelObject):
         raise NotImplementedError()
 
 class Job(ModelObject):
-    _references = ["group", "agent", "component", "environment"]
+    _references = ["group", "agent"]
 
-    def __init__(self, group, component, environment, agent, name):
+    def __init__(self, agent, group, name=None, variant=None):
         super().__init__(group._model, group._model.jobs, name)
 
-        assert isinstance(group, Group), group
         assert isinstance(agent, Agent), agent
-        assert component is None or isinstance(component, Component), component
-        assert environment is None or isinstance(environment, Environment), environment
+        assert isinstance(group, Group), group
 
-        self.group = group
         self.agent = agent
-        self.branch = None
-        self.component = component
-        self.environment = environment
+        self.group = group
+        self.variant = variant
 
-        self.group.jobs.append(self)
         self.agent.jobs.append(self)
-
-        if self.component is not None:
-            self.component.jobs.append(self)
-
-        if self.environment is not None:
-            self.environment.jobs.append(self)
+        self.group.jobs.append(self)
 
         self.current_run = None
         self.previous_run = None
@@ -292,7 +266,7 @@ class HttpAgent(Agent):
         if self._token:
             headers["Authorization"] = f"token {self._token}"
 
-        async with _httpx.AsyncClient(headers=headers) as client:
+        async with _httpx.AsyncClient(headers=headers, verify=False) as client:
             start = _time.time()
             await _asyncio.gather(*[x.update(client) for x in self.jobs])
             elapsed = _time.time() - start

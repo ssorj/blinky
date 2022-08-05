@@ -37,16 +37,17 @@ class JenkinsAgent(HttpAgent):
         self.data_url = f"{self.html_url}/api/json"
 
 class JenkinsJob(HttpJob):
-    def __init__(self, group, agent, slug, branch,
-                 component=None, environment=None, name=None):
-        super().__init__(group, component, environment, agent, name)
+    # Fetch only as much data as we need
+    _rest_api_qs = "tree=number,result,actions,timestamp,duration"
+
+    def __init__(self, agent, group, slug, name=None, variant=None):
+        super().__init__(agent, group, name=name, variant=variant)
 
         self.slug = slug
-        self.branch = branch
 
         self.html_url = f"{self.agent.html_url}/job/{self.slug}"
-        self.data_url = f"{self.html_url}/api/json?{_rest_api_qs}"
-        self.fetch_url = f"{self.html_url}/lastBuild/api/json?{_rest_api_qs}"
+        self.data_url = f"{self.html_url}/api/json?{self._rest_api_qs}"
+        self.fetch_url = f"{self.html_url}/lastBuild/api/json?{self._rest_api_qs}"
 
     def convert_run(self, data):
         number = data["number"]
@@ -55,7 +56,7 @@ class JenkinsJob(HttpJob):
         status = _status_mapping.get(status, status)
 
         html_url = f"{self.html_url}/{number}"
-        data_url = f"{html_url}/api/json?{_rest_api_qs}"
+        data_url = f"{html_url}/api/json?{self._rest_api_qs}"
         tests_url = None
 
         for action in data["actions"]:
@@ -74,6 +75,3 @@ class JenkinsJob(HttpJob):
         run.logs_url = f"{html_url}/console"
 
         return run
-
-# Fetch only as much data as we need
-_rest_api_qs = "tree=number,result,actions,timestamp,duration"

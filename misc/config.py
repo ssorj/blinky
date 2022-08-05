@@ -8,27 +8,26 @@ http_port = 8080
 
 model.title = "Test CI"
 
-# Components
-
-proton_c = Component(model, "Proton C")
-
-# Environments
-
-multiple = Environment(model, "Multiple OSes")
-
-# Agents
-
+appveyor = AppVeyorAgent(model, "AppVeyor")
+asf_jenkins = JenkinsAgent(model, "ASF Jenkins", "https://ci-builds.apache.org/job/Qpid")
+circleci = CircleCiAgent(model, "CircleCI")
 github = GitHubAgent(model, "GitHub")
+travis_ci = TravisCiAgent(model, "Travis CI", html_url="https://travis-ci.com/github", token="HFsJh03_8VhtMDGv8w4e2Q")
 
-# Categories
+category = Category(model, "Clients", "client")
 
-client_tests = Category(model, "Clients", "client")
+group = Group(category, "Proton C")
 
-# Groups
+GitHubJob(github, group, "apache/qpid-proton", "main", "build.yml")
+TravisCiJob(travis_ci, group, "apache/qpid-proton", "main")
 
-group = Group(client_tests, "Proton C")
+group = Group(category, "Qpid JMS")
 
-# To look up GitHub Actions workflow IDs:
-# curl https://api.github.com/repos/apache/qpid-proton/actions/workflows
+JenkinsJob(asf_jenkins, group, "Qpid-JMS-Test-JDK11", name="Test", variant="Java 11")
+AppVeyorJob(appveyor, group, "ApacheSoftwareFoundation", "qpid-jms", "main", variant="Windows")
 
-GitHubJob  (group, github, "apache/qpid-proton", "main", "build.yml")
+category = Category(model, "Skupper", "skupper")
+
+group = Group(category, "Skupper")
+
+CircleCiJob(circleci, group, "gh/skupperproject/skupper", "master")

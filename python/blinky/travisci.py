@@ -48,9 +48,8 @@ class TravisCiAgent(HttpAgent):
         return await super().update(headers=headers)
 
 class TravisCiJob(HttpJob):
-    def __init__(self, group, agent, repo, branch,
-                 component=None, environment=None, name=None):
-        super().__init__(group, component, environment, agent, name)
+    def __init__(self, agent, group, repo, branch, name=None, variant=None):
+        super().__init__(agent, group, name=name, variant=variant)
 
         self.repo = repo
         self.branch = branch

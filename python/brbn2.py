@@ -19,6 +19,7 @@
 
 import logging as _logging
 import os as _os
+import starlette.exceptions as _exceptions
 import starlette.requests as _requests
 import starlette.routing as _routing
 import starlette.staticfiles as _staticfiles
@@ -53,7 +54,14 @@ class Router(_routing.Router):
 
     async def __call__(self, scope, receive, send):
         scope["app"] = self.app
-        await super().__call__(scope, receive, send)
+
+        try:
+            await super().__call__(scope, receive, send)
+        except _exceptions.HTTPException as e:
+            if e.status_code == 404:
+                await NotFoundResponse()(scope, receive, send)
+            else:
+                raise
 
 class Request(_requests.Request):
     @property

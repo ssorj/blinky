@@ -227,11 +227,9 @@ class Blinky {
         }
 
         const fields = {
-            "name": job.name,
-            "branch": capitalize(job.branch),
             "agent": getName(this.state.data.agents[job.agent_id]),
-            "component": getName(this.state.data.components[job.component_id]),
-            "environment": getName(this.state.data.environments[job.environment_id]),
+            "name": job.name,
+            "variant": job.variant,
         }
 
         let summary = gesso.createLink(elem, job.html_url, {"class": "job-summary"});
@@ -290,8 +288,6 @@ class Blinky {
     renderJobDetail(parent, job) {
         let elem = gesso.createDiv(parent, "job-detail");
 
-        let component = this.state.data.components[job.component_id];
-        let environment = this.state.data.environments[job.environment_id];
         let agent = this.state.data.agents[job.agent_id];
         let currRun = job.current_run;
         let prevRun = job.previous_run;
@@ -299,15 +295,6 @@ class Blinky {
         let table = gesso.createElement(elem, "table");
         let tbody = gesso.createElement(table, "tbody");
         let td;
-
-        // XXX
-        if (component != null) {
-            this.createJobDetailField(tbody, "Component", component.name);
-        }
-
-        if (environment != null) {
-            this.createJobDetailField(tbody, "Environment", environment.name);
-        }
 
         td = this.createJobDetailField(tbody, "Agent");
         this.createObjectLink(td, agent);
@@ -328,7 +315,7 @@ class Blinky {
             td = this.createJobDetailField(tbody, "Run");
             this.createObjectLink(td, currRun, currRun.number);
 
-            this.createJobDetailField(tbody, "Time", ago);
+            this.createJobDetailField(tbody, "Start time", ago);
             this.createJobDetailField(tbody, "Duration", duration);
             this.createJobDetailField(tbody, "Status", currRun.status);
 
@@ -358,14 +345,14 @@ class Blinky {
         let thead = gesso.createElement(elem, "thead");
         let tr = gesso.createElement(thead, "tr");
 
-        gesso.createElement(tr, "th", "Component");
-        gesso.createElement(tr, "th", "Environment");
-        gesso.createElement(tr, "th", "Job");
         gesso.createElement(tr, "th", "Agent");
-        gesso.createElement(tr, "th", "Number");
-        gesso.createElement(tr, "th", "Time");
+        gesso.createElement(tr, "th", "Group");
+        gesso.createElement(tr, "th", "Name");
+        gesso.createElement(tr, "th", "Variant");
+        gesso.createElement(tr, "th", "Latest run");
+        gesso.createElement(tr, "th", "Start time");
         gesso.createElement(tr, "th", "Duration");
-        gesso.createElement(tr, "th", "Curr status");
+        gesso.createElement(tr, "th", "Status");
         gesso.createElement(tr, "th", "Prev status");
         gesso.createElement(tr, "th", "Links");
 
@@ -374,15 +361,12 @@ class Blinky {
         let jobs = this.state.data.jobs;
         let groups = this.state.data.groups;
         let categories = this.state.data.categories;
-        let components = this.state.data.components;
-        let environments = this.state.data.environments;
         let agents = this.state.data.agents;
 
         let selection = this.state.query.category;
 
         for (let jobId of Object.keys(jobs)) {
             let job = jobs[jobId];
-
             let group = groups[job.group_id];
             let category = categories[group.category_id];
 
@@ -390,34 +374,22 @@ class Blinky {
                 continue;
             }
 
-            let component = components[job.component_id];
-            let environment = environments[job.environment_id];
             let agent = agents[job.agent_id];
-
             let currRun = job.current_run;
             let prevRun = job.previous_run;
 
             let tr = gesso.createElement(tbody, "tr");
-
-            if (component != null) {
-                gesso.createElement(tr, "td", component.name);
-            } else {
-                gesso.createElement(tr, "td", "-");
-            }
-
-            if (environment != null) {
-                gesso.createElement(tr, "td", environment.name);
-            } else {
-                gesso.createElement(tr, "td", "-");
-            }
-
             let td;
+
+            td = gesso.createElement(tr, "td");
+            this.createObjectLink(td, agent);
+
+            gesso.createElement(tr, "td", group.name);
 
             td = gesso.createElement(tr, "td");
             this.createObjectLink(td, job);
 
-            td = gesso.createElement(tr, "td");
-            this.createObjectLink(td, agent);
+            gesso.createElement(tr, "td", job.variant || "-");
 
             if (currRun) {
                 let duration = gesso.formatDurationBrief(currRun.duration);
