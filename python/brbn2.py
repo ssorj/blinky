@@ -17,6 +17,7 @@
 # under the License.
 #
 
+import asyncio as _asyncio
 import logging as _logging
 import os as _os
 import starlette.exceptions as _exceptions
@@ -31,12 +32,13 @@ from starlette.responses import *
 _log = _logging.getLogger("brbn")
 
 class Server:
-    def __init__(self, app, host="", port=8080, lifespan=None):
+    def __init__(self, app, host="", port=8080):
         self.app = app
         self.host = host
         self.port = port
 
-        self._router = _Router(self.app, lifespan=lifespan)
+        self._task_coros = list()
+        self._router = _Router(self.app, _Lifespan(self._task_coros))
 
     def add_route(self, path, endpoint, method=None, methods=["GET", "HEAD"]):
         assert path.startswith("/"), path
@@ -51,16 +53,22 @@ class Server:
 
         self._router.mount(path, app=_staticfiles.StaticFiles(directory=dir, html=True))
 
+    def add_task(self, coro):
+        self._task_coros.append(coro)
+
     def run(self):
         _uvicorn.run(self._router, host=self.host, port=self.port)
 
+# XXX Maybe we can get rid of this
 class _Router(_routing.Router):
-    def __init__(self, app, lifespan=None):
+    def __init__(self, app, lifespan):
         super().__init__(lifespan=lifespan)
-        self.app = app
+
+        # self.app = app XXX
+        # self.task_coros = list()
 
     async def __call__(self, scope, receive, send):
-        scope["app"] = self.app
+        # scope["app"] = self.app XXX
 
         try:
             await super().__call__(scope, receive, send)
@@ -69,6 +77,20 @@ class _Router(_routing.Router):
                 await NotFoundResponse()(scope, receive, send)
             else:
                 raise
+
+class _Lifespan():
+    def __init__(self, task_coros):
+        self.task_coros = task_coros
+
+    def __call__(self, obj):
+        return self
+
+    async def __aenter__(self):
+        for coro in self.task_coros:
+            _asyncio.get_event_loop().create_task(coro)
+
+    async def __aexit__(self, exc_type, exc, exc_tb):
+        pass
 
 class Request(_requests.Request):
     pass # XXX

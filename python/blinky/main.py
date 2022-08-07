@@ -45,6 +45,7 @@ Blinky looks for its configuration in the following locations:
 class BlinkyCommand:
     def __init__(self, home):
         self.home = home
+        self.static_dir = _os.path.join(self.home, "static")
 
         self.parser = _argparse.ArgumentParser(description=_description, epilog=_epilog,
                                                formatter_class=_argparse.RawDescriptionHelpFormatter)
@@ -61,7 +62,7 @@ class BlinkyCommand:
         self.model = Model()
         self.model.load(args.config)
 
-        self.server = _brbn.Server(self, host="", port=8080, lifespan=ModelUpdateTask)
+        self.server = _brbn.Server(self, host="", port=8080)
 
         main = MainEndpoint(self)
         data = DataEndpoint(self)
@@ -72,9 +73,9 @@ class BlinkyCommand:
         self.server.add_route("/api/data", data)
         self.server.add_route("/proxy", proxy)
 
-        static_dir = _os.path.join(self.home, "static")
+        self.server.add_static_files("/", self.static_dir)
 
-        self.server.add_static_files("/", static_dir)
+        self.server.add_task(self.update())
 
     def main(self):
         _logging.basicConfig(level=_logging.ERROR)
@@ -86,27 +87,17 @@ class BlinkyCommand:
         except KeyboardInterrupt:
             pass
 
-class ModelUpdateTask():
-    def __init__(self, app):
-        self.app = app
-
-    async def __aenter__(self):
-        _asyncio.get_event_loop().create_task(self.update())
-
-    async def __aexit__(self, exc_type, exc, exc_tb):
-        pass
-
     async def update(self):
         while True:
             start = _time.time()
-            await self.app.model.update()
+            await self.model.update()
             elapsed = _time.time() - start
 
             await _asyncio.sleep(max(0, 30 * 60 - elapsed))
 
 class MainEndpoint(_brbn.Endpoint):
     async def render(self, request, entity):
-        with open(_os.path.join(self.app.home, "static", "main.html")) as file:
+        with open(_os.path.join(self.app.static_dir, "main.html")) as file:
             html = file.read()
 
         return _brbn.HtmlResponse(html)
