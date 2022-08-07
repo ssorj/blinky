@@ -36,18 +36,25 @@ class Server:
         self.host = host
         self.port = port
 
-        self.router = Router(self.app, lifespan=lifespan)
+        self._router = _Router(self.app, lifespan=lifespan)
 
-    def add_route(self, *args, **kwargs):
-        self.router.add_route(*args, **kwargs)
+    def add_route(self, path, endpoint, method=None, methods=["GET", "HEAD"]):
+        assert path.startswith("/"), path
+
+        if method is not None:
+            methods = [method]
+
+        self._router.add_route(path, endpoint=endpoint, methods=methods)
 
     def add_static_files(self, path, dir):
-        self.router.mount(path, app=_staticfiles.StaticFiles(directory=dir, html=True))
+        assert path.startswith("/"), path
+
+        self._router.mount(path, app=_staticfiles.StaticFiles(directory=dir, html=True))
 
     def run(self):
-        _uvicorn.run(self.router, host=self.host, port=self.port)
+        _uvicorn.run(self._router, host=self.host, port=self.port)
 
-class Router(_routing.Router):
+class _Router(_routing.Router):
     def __init__(self, app, lifespan=None):
         super().__init__(lifespan=lifespan)
         self.app = app
@@ -68,7 +75,7 @@ class Request(_requests.Request):
     def app(self):
         return self["app"]
 
-class Handler:
+class Endpoint:
     async def __call__(self, scope, receive, send):
         request = Request(scope, receive)
 

@@ -102,24 +102,25 @@ class Server(_brbn.Server):
     def __init__(self, app, host="", port=8080):
         super().__init__(app, host=host, port=port, lifespan=ModelUpdateTask)
 
-        main = MainHandler() # Makes sense to take app here XXX
+        main = MainEndpoint() # Makes sense to take app here XXX
+        data = DataEndpoint()
+        proxy = ProxyEndpoint()
 
-        self.add_route("/", main, methods=["GET", "HEAD"])
-        self.add_route("/pretty", main, methods=["GET", "HEAD"])
+        self.add_route("/", main)
+        self.add_route("/pretty", main)
+        self.add_route("/api/data", data)
+        self.add_route("/proxy", proxy)
 
-        self.add_route("/api/data", endpoint=DataHandler(), methods=["GET", "HEAD"]) # XXX default to GET and HEAD (and support method=)
-        self.add_route("/proxy", endpoint=ProxyHandler(), methods=["GET", "HEAD"])
+        self.add_static_files("/", _os.path.join(self.app.home, "static"))
 
-        self.add_static_files("", _os.path.join(self.app.home, "static"))
-
-class MainHandler(_brbn.Handler):
+class MainEndpoint(_brbn.Endpoint):
     async def render(self, request, entity):
         with open(_os.path.join(request.app.home, "static", "main.html")) as file:
             html = file.read()
 
         return _brbn.HtmlResponse(html)
 
-class DataHandler(_brbn.Handler):
+class DataEndpoint(_brbn.Endpoint):
     async def process(self, request):
         return request.app.model
 
@@ -129,7 +130,7 @@ class DataHandler(_brbn.Handler):
     async def render(self, request, model):
         return _brbn.JsonResponse(model.data())
 
-class ProxyHandler(_brbn.Handler):
+class ProxyEndpoint(_brbn.Endpoint):
     async def process(self, request):
         url = request.query_params["url"]
 
