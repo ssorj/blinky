@@ -37,8 +37,8 @@ class Server:
         self.host = host
         self.port = port
 
-        self._task_coros = list()
-        self._router = _Router(self.app, _Lifespan(self._task_coros))
+        self._startup_coros = list()
+        self._router = _Router(self.app, _Lifespan(self))
 
     def add_route(self, path, endpoint, method=None, methods=["GET", "HEAD"]):
         assert path.startswith("/"), path
@@ -53,8 +53,8 @@ class Server:
 
         self._router.mount(path, app=_staticfiles.StaticFiles(directory=dir, html=True))
 
-    def add_task(self, coro):
-        self._task_coros.append(coro)
+    def add_startup_task(self, coro):
+        self._startup_coros.append(coro)
 
     def run(self):
         _uvicorn.run(self._router, host=self.host, port=self.port)
@@ -79,14 +79,14 @@ class _Router(_routing.Router):
                 raise
 
 class _Lifespan():
-    def __init__(self, task_coros):
-        self.task_coros = task_coros
+    def __init__(self, server):
+        self.server = server
 
-    def __call__(self, obj):
+    def __call__(self, asgi_app):
         return self
 
     async def __aenter__(self):
-        for coro in self.task_coros:
+        for coro in self.server._startup_coros:
             _asyncio.get_event_loop().create_task(coro)
 
     async def __aexit__(self, exc_type, exc, exc_tb):

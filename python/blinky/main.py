@@ -75,7 +75,7 @@ class BlinkyCommand:
 
         self.server.add_static_files("/", self.static_dir)
 
-        self.server.add_task(self.update())
+        self.server.add_startup_task(self.update())
 
     def main(self):
         _logging.basicConfig(level=_logging.ERROR)
