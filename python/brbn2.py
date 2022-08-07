@@ -71,11 +71,12 @@ class _Router(_routing.Router):
                 raise
 
 class Request(_requests.Request):
-    @property
-    def app(self):
-        return self["app"]
+    pass # XXX
 
 class Endpoint:
+    def __init__(self, app):
+        self.app = app
+
     async def __call__(self, scope, receive, send):
         request = Request(scope, receive)
 

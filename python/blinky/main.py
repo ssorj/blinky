@@ -45,7 +45,6 @@ Blinky looks for its configuration in the following locations:
 class BlinkyCommand:
     def __init__(self, home):
         self.home = home
-        self.model = Model()
 
         self.parser = _argparse.ArgumentParser(description=_description, epilog=_epilog,
                                                formatter_class=_argparse.RawDescriptionHelpFormatter)
@@ -56,27 +55,34 @@ class BlinkyCommand:
         self.parser.add_argument("--config", default=default_config_file, metavar="FILE",
                                  help="Load configuration from FILE")
 
-        self.parser.add_argument("--init-only", action="store_true",
-                                 help="Initialize then exit")
-
-    def run(self):
+    def init(self):
         args = self.parser.parse_args()
 
+        self.model = Model()
         self.model.load(args.config)
 
-        server = Server(self, port=8080)
+        self.server = _brbn.Server(self, host="", port=8080, lifespan=ModelUpdateTask)
 
-        if args.init_only:
-            return
+        main = MainEndpoint(self)
+        data = DataEndpoint(self)
+        proxy = ProxyEndpoint(self)
 
-        server.run()
+        self.server.add_route("/", main)
+        self.server.add_route("/pretty", main)
+        self.server.add_route("/api/data", data)
+        self.server.add_route("/proxy", proxy)
+
+        static_dir = _os.path.join(self.home, "static")
+
+        self.server.add_static_files("/", static_dir)
 
     def main(self):
         _logging.basicConfig(level=_logging.ERROR)
         _logging.getLogger("blinky").setLevel(_logging.INFO)
 
         try:
-            self.run()
+            self.init()
+            self.server.run()
         except KeyboardInterrupt:
             pass
 
@@ -98,31 +104,16 @@ class ModelUpdateTask():
 
             await _asyncio.sleep(max(0, 30 * 60 - elapsed))
 
-class Server(_brbn.Server):
-    def __init__(self, app, host="", port=8080):
-        super().__init__(app, host=host, port=port, lifespan=ModelUpdateTask)
-
-        main = MainEndpoint() # Makes sense to take app here XXX
-        data = DataEndpoint()
-        proxy = ProxyEndpoint()
-
-        self.add_route("/", main)
-        self.add_route("/pretty", main)
-        self.add_route("/api/data", data)
-        self.add_route("/proxy", proxy)
-
-        self.add_static_files("/", _os.path.join(self.app.home, "static"))
-
 class MainEndpoint(_brbn.Endpoint):
     async def render(self, request, entity):
-        with open(_os.path.join(request.app.home, "static", "main.html")) as file:
+        with open(_os.path.join(self.app.home, "static", "main.html")) as file:
             html = file.read()
 
         return _brbn.HtmlResponse(html)
 
 class DataEndpoint(_brbn.Endpoint):
     async def process(self, request):
-        return request.app.model
+        return self.app.model
 
     def etag(self, request, model):
         return model.update_time
