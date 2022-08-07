@@ -97,10 +97,7 @@ class BlinkyCommand:
 
 class MainEndpoint(_brbn.Endpoint):
     async def render(self, request, entity):
-        with open(_os.path.join(self.app.static_dir, "main.html")) as file:
-            html = file.read()
-
-        return _brbn.HtmlResponse(html)
+        return _brbn.FileResponse(_os.path.join(self.app.static_dir, "main.html"))
 
 class DataEndpoint(_brbn.Endpoint):
     async def process(self, request):

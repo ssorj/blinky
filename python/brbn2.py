@@ -158,6 +158,9 @@ class PlainTextResponse(_responses.PlainTextResponse):
 class HtmlResponse(_responses.HTMLResponse):
     pass
 
+class FileResponse(_responses.FileResponse):
+    pass
+
 class OkResponse(Response):
     def __init__(self):
         super().__init__("OK\n")
