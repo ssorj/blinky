@@ -22,12 +22,12 @@ import logging as _logging
 import os as _os
 import starlette.exceptions as _exceptions
 import starlette.requests as _requests
+import starlette.responses as _responses
 import starlette.routing as _routing
 import starlette.staticfiles as _staticfiles
 import traceback as _traceback
 import uvicorn as _uvicorn
 
-from starlette.responses import *
 
 _log = _logging.getLogger("brbn")
 
@@ -37,8 +37,8 @@ class Server:
         self.host = host
         self.port = port
 
+        self._router = _Router(lifespan=_LifespanContext(self))
         self._startup_coros = list()
-        self._router = _Router(self.app, _Lifespan(self))
 
     def add_route(self, path, endpoint, method=None, methods=["GET", "HEAD"]):
         assert path.startswith("/"), path
@@ -59,17 +59,8 @@ class Server:
     def run(self):
         _uvicorn.run(self._router, host=self.host, port=self.port)
 
-# XXX Maybe we can get rid of this
 class _Router(_routing.Router):
-    def __init__(self, app, lifespan):
-        super().__init__(lifespan=lifespan)
-
-        # self.app = app XXX
-        # self.task_coros = list()
-
     async def __call__(self, scope, receive, send):
-        # scope["app"] = self.app XXX
-
         try:
             await super().__call__(scope, receive, send)
         except _exceptions.HTTPException as e:
@@ -78,7 +69,7 @@ class _Router(_routing.Router):
             else:
                 raise
 
-class _Lifespan():
+class _LifespanContext():
     def __init__(self, server):
         self.server = server
 
@@ -159,6 +150,19 @@ class NotFoundError(HandlingException):
     def __init__(self, message):
         super().__init__(message, NotFoundResponse(message))
 
+class Response(_responses.Response):
+    pass
+
+class PlainTextResponse(_responses.PlainTextResponse):
+    pass
+
+class HtmlResponse(_responses.HTMLResponse):
+    pass
+
+class OkResponse(Response):
+    def __init__(self):
+        super().__init__("OK\n")
+
 class BadRequestResponse(PlainTextResponse):
     def __init__(self, exception):
         super().__init__(f"Bad request: {exception}\n", 400)
@@ -176,19 +180,12 @@ class ServerErrorResponse(PlainTextResponse):
         super().__init__(f"Internal server error: {exception}\n", 500)
         _traceback.print_exc()
 
+class JsonResponse(_responses.JSONResponse):
+    pass
+
 class BadJsonResponse(PlainTextResponse):
     def __init__(self, exception):
         super().__init__(f"Bad request: Failure decoding JSON: {exception}\n", 400)
-
-class OkResponse(Response):
-    def __init__(self):
-        super().__init__("OK\n")
-
-class HtmlResponse(HTMLResponse):
-    pass
-
-class JsonResponse(JSONResponse):
-    pass
 
 class CompressedJsonResponse(Response):
     def __init__(self, content):
