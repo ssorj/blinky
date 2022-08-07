@@ -28,7 +28,6 @@ import starlette.staticfiles as _staticfiles
 import traceback as _traceback
 import uvicorn as _uvicorn
 
-
 _log = _logging.getLogger("brbn")
 
 class Server:
