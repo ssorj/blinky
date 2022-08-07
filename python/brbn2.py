@@ -63,14 +63,14 @@ class _Router(_routing.Router):
         try:
             await super().__call__(scope, receive, send)
         except _EndpointException as e:
-            response = e.response
+            await e.response(scope, receive, send)
         except _exceptions.HTTPException as e:
             if e.status_code == 404:
                 await NotFoundResponse()(scope, receive, send)
             else:
                 raise
         except Exception as e:
-            response = ServerErrorResponse(e)
+            await ServerErrorResponse(e)(scope, receive, send)
 
 class _LifespanContext():
     def __init__(self, server):
@@ -86,8 +86,37 @@ class _LifespanContext():
     async def __aexit__(self, exc_type, exc, exc_tb):
         pass
 
-class Request(_requests.Request):
-    pass # XXX
+class Request:
+    def __init__(self, scope, receive):
+        self._request = _requests.Request(scope, receive)
+
+    def get(self, param, default=None):
+        try:
+            return self._request.query_params[param]
+        except KeyError:
+            try:
+                return self._request.path_params[param]
+            except KeyError:
+                return default
+
+    def require(self, param):
+        value = self.get(param)
+
+        if value is None:
+            raise BadRequestError(f"Required parameter not found: {param}")
+
+        return value
+
+    @property
+    def method(self):
+        return self._request.method
+
+    @property
+    def headers(self):
+        return self._request.headers
+
+    def json(self):
+        return self._request.json()
 
 class Endpoint:
     def __init__(self, app):

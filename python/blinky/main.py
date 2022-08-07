@@ -111,7 +111,7 @@ class DataEndpoint(_brbn.Endpoint):
 
 class ProxyEndpoint(_brbn.Endpoint):
     async def process(self, request):
-        url = request.query_params["url"]
+        url = request.require("url") # XXX
 
         async with _httpx.AsyncClient() as client:
             return await client.get(url)
