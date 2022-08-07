@@ -62,11 +62,15 @@ class _Router(_routing.Router):
     async def __call__(self, scope, receive, send):
         try:
             await super().__call__(scope, receive, send)
+        except _EndpointException as e:
+            response = e.response
         except _exceptions.HTTPException as e:
             if e.status_code == 404:
                 await NotFoundResponse()(scope, receive, send)
             else:
                 raise
+        except Exception as e:
+            response = ServerErrorResponse(e)
 
 class _LifespanContext():
     def __init__(self, server):
@@ -91,17 +95,11 @@ class Endpoint:
 
     async def __call__(self, scope, receive, send):
         request = Request(scope, receive)
-
-        try:
-            response = await self.handle(request)
-        except HandlingException as e:
-            response = e.response
-        except Exception as e:
-            response = ServerErrorResponse(e)
+        response = await self.respond(request)
 
         await response(scope, receive, send)
 
-    async def handle(self, request):
+    async def respond(self, request):
         entity = await self.process(request)
         server_etag = self.etag(request, entity)
 
@@ -132,20 +130,20 @@ class Endpoint:
     async def render(self, request, entity):
         return OkResponse()
 
-class HandlingException(Exception):
+class _EndpointException(Exception):
     def __init__(self, message, response):
         super().__init__(message)
         self.response = response
 
-class Redirect(HandlingException):
+class Redirect(_EndpointException):
     def __init__(self, url):
         super().__init__(url, RedirectResponse(url))
 
-class BadRequestError(HandlingException):
+class BadRequestError(_EndpointException):
     def __init__(self, message):
         super().__init__(message, BadRequestResponse(message))
 
-class NotFoundError(HandlingException):
+class NotFoundError(_EndpointException):
     def __init__(self, message):
         super().__init__(message, NotFoundResponse(message))
 
