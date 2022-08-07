@@ -1,499 +1,467 @@
-/*
- *
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *
- */
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
 
-"use strict";
+import * as gesso from "./gesso/gesso.js";
+import * as pretty from "./pretty.js";
+import * as sortable from "./sortable.js";
 
-const gesso = new Gesso();
+const html = `
+<body>
+  <div id="content">
+    <span class="notice">Loading...</span>
+  </div>
+</body>
+`;
 
-class Blinky {
-    constructor() {
-        this.state = {
-            query: {
-                category: "all",
-                view: "panel",
-            },
-            data: null,
-            dataFetchState: null,
-            renderTime: null,
-        };
+const state = {
+    query: {
+        category: "all",
+        view: "panel",
+    },
+    data: null,
+    renderTime: null,
+};
 
-        window.addEventListener("statechange", (event) => {
-            this.renderPage();
+class Page extends gesso.Page {
+    constructor(router) {
+        super(router, "/", html);
+    }
 
-            if (this.state.query.view === "table") {
-                Sortable.init();
-            }
-        });
+    update() {
+        state.query = Object.fromEntries(new URLSearchParams(window.location.search).entries());
 
-        window.addEventListener("load", (event) => {
-            if (window.location.search) {
-                this.state.query = gesso.parseQueryString(window.location.search);
-            }
-
-            if (this.state.query.view === "table") {
-                gesso.fetch("/api/data", (data) => {
-                    this.state.data = data;
-                    window.dispatchEvent(new Event("statechange"));
-                });
-            } else {
-                this.state.dataFetchState = gesso.fetchPeriodically("/api/data", (data) => {
-                    this.state.data = data;
-                    window.dispatchEvent(new Event("statechange"));
-                });
-
-                window.setInterval(() => { this.checkFreshness }, 60 * 1000);
-            }
-        });
-
-        window.addEventListener("popstate", (event) => {
-            this.state.query = event.state;
-            window.dispatchEvent(new Event("statechange"));
+        gesso.getJson("/api/data", (data) => {
+            state.data = data;
+            renderPage();
+            Sortable.init();
         });
     }
+}
 
-    renderHeader(parent) {
-        let elem = gesso.createDiv(parent, "header");
+const router = new gesso.Router();
+const mainPage = new Page(router);
+new pretty.Page(router);
 
-        this.renderViewSelector(elem);
-
-        gesso.createElement(elem, "h1", this.state.data.title);
-
-        this.renderCategorySelector(elem);
+window.setInterval(() => {
+    if (router.page === mainPage && state.query.view === "panel") {
+        mainPage.update();
     }
+}, 60 * 1000);
 
-    renderBody(parent) {
-        let elem = gesso.createDiv(parent, "body");
-        let view = this.state.query.view;
+function renderPage() {
+    console.log("Rendering page");
 
-        if (view === "panel") {
-            this.renderPanelView(elem);
-        } else if (view === "table") {
-            this.renderTableView(elem);
-        } else {
-            throw new Error();
+    state.renderTime = new Date().getTime();
+
+    renderSiteIcon();
+
+    document.title = state.data.title;
+
+    let elem = gesso.createDiv(null, "#content");
+
+    renderHeader(elem);
+    renderBody(elem);
+    renderFooter(elem);
+
+    gesso.replaceElement($("#content"), elem);
+}
+
+function renderSiteIcon() {
+    const jobs = state.data.jobs;
+    let passed = 0;
+    let failed = 0;
+
+    for (let jobId of Object.keys(jobs)) {
+        let job = jobs[jobId];
+
+        if (!job.current_run) {
+            continue;
         }
-    }
 
-    renderFooter(parent) {
-        let elem = gesso.createDiv(parent, "footer");
-
-        let time = new Date((this.state.data.update_time));
-
-        let status = gesso.createSpan(elem, "#timestamp", time.toLocaleString());
-
-        let url = new URL("/api/data", window.location.href);
-
-        gesso.createText(elem, " \u2022 ");
-        gesso.createLink(elem, "pretty.html?url=" + encodeURIComponent(url), "Data");
-    }
-
-    renderViewSelector(parent) {
-        let elem = gesso.createDiv(parent, "view-selector");
-
-        this.renderViewSelectorLink(elem, "Panel", "panel");
-        this.renderViewSelectorLink(elem, "Table", "table");
-    }
-
-    renderViewSelectorLink(parent, text, view) {
-        let query = Object.assign({}, this.state.query);
-        query.view = view;
-
-        this.renderStateChangeLink(parent, text, query, view === this.state.query.view);
-    }
-
-    renderCategorySelector(parent) {
-        let elem = gesso.createDiv(parent, "category-selector");
-
-        this.renderCategorySelectorLink(elem, "All", "all");
-
-        let categories = this.state.data.categories;
-
-        for (let categoryId of Object.keys(categories)) {
-            let category = categories[categoryId];
-            this.renderCategorySelectorLink(elem, category.name, category.key);
+        if (job.current_run.status == "PASSED") {
+            passed += 1;
+        } else if (job.current_run.status == "FAILED") {
+            failed += 1;
         }
     }
 
-    renderCategorySelectorLink(parent, text, category) {
-        let query = Object.assign({}, this.state.query);
-        query.category = category;
+    const total = passed + failed;
+    let icon;
 
-        this.renderStateChangeLink(parent, text, query, category === this.state.query.category);
+    if (total == 0) {
+        return;
     }
 
-    renderStateChangeLink(parent, text, query, selected) {
-        let href = "?" + gesso.emitQueryString(query);
-        let elem = gesso.createLink(parent, href, text);
-
-        if (selected) {
-            elem.classList.add("selected");
-        }
-
-        elem.addEventListener("click", (event) => {
-            event.preventDefault();
-
-            this.state.query = query;
-            window.history.pushState(this.state.query, null, event.target.href);
-
-            window.dispatchEvent(new Event("statechange"));
-        });
+    if (failed / total >= 0.75) {
+        icon = "/images/icon-4.svg";
+    } else if (failed / total >= 0.5) {
+        icon = "/images/icon-3.svg";
+    } else if (failed / total >= 0.25) {
+        icon = "/images/icon-2.svg";
+    } else if (failed / total >= 0.0) {
+        icon = "/images/icon-1.svg";
+    } else {
+        icon = "/images/icon-0.svg";
     }
 
-    createObjectLink(parent, obj, text) {
-        if (text == null) {
-            text = obj.name;
-        }
+    $("link[rel*='icon']").href = icon;
+}
 
-        if (text == null) {
-            text = "-";
-        }
+function renderHeader(parent) {
+    let elem = gesso.createDiv(parent, "header");
 
-        return gesso.createLink(parent, obj.html_url, text);
+    renderViewSelector(elem);
+
+    gesso.createElement(elem, "h1", state.data.title);
+
+    renderCategorySelector(elem);
+}
+
+function renderBody(parent) {
+    let elem = gesso.createDiv(parent, "body");
+    let view = state.query.view;
+
+    if (view === "panel") {
+        renderPanelView(elem);
+    } else if (view === "table") {
+        renderTableView(elem);
+    } else {
+        throw new Error();
+    }
+}
+
+function renderFooter(parent) {
+    let elem = gesso.createDiv(parent, "footer");
+    let time = new Date((state.data.update_time));
+    let url = new URL("/api/data", window.location.href);
+
+    gesso.createSpan(elem, "#timestamp", time.toLocaleString());
+    gesso.createText(elem, " \u2022 ");
+    gesso.createLink(elem, "pretty?url=" + encodeURIComponent(url), "Data");
+}
+
+function renderViewSelector(parent) {
+    let elem = gesso.createDiv(parent, "view-selector");
+
+    renderViewSelectorLink(elem, "Panel", "panel");
+    renderViewSelectorLink(elem, "Table", "table");
+}
+
+function renderViewSelectorLink(parent, text, view) {
+    let query = Object.assign({}, state.query);
+    query.view = view;
+
+    renderStateChangeLink(parent, text, query, view === state.query.view);
+}
+
+function renderCategorySelector(parent) {
+    let elem = gesso.createDiv(parent, "category-selector");
+
+    renderCategorySelectorLink(elem, "All", "all");
+
+    let categories = state.data.categories;
+
+    for (let categoryId of Object.keys(categories)) {
+        let category = categories[categoryId];
+        renderCategorySelectorLink(elem, category.name, category.key);
+    }
+}
+
+function renderCategorySelectorLink(parent, text, category) {
+    let query = Object.assign({}, state.query);
+    query.category = category;
+
+    renderStateChangeLink(parent, text, query, category === state.query.category);
+}
+
+function renderStateChangeLink(parent, text, query, selected) {
+    let href = "?" + new URLSearchParams(query).toString();;
+    let elem = gesso.createLink(parent, href, text);
+
+    if (selected) {
+        elem.classList.add("selected");
+    }
+}
+
+function createObjectLink(parent, obj, text) {
+    if (text == null) {
+        text = obj.name;
     }
 
-    renderRunLinks(parent, run) {
-        let data_url = "pretty.html?url=" + encodeURIComponent(run.data_url);
+    if (text == null) {
+        text = "-";
+    }
 
-        gesso.createLink(parent, data_url, "Data");
-        gesso.createText(parent, ", ");
+    return gesso.createLink(parent, obj.html_url, text);
+}
 
-        if (run.tests_url == null) {
-            gesso.createSpan(parent, "disabled", "Tests");
-        } else {
-            gesso.createLink(parent, run.tests_url, "Tests");
+function renderRunLinks(parent, run) {
+    let data_url = "pretty?url=" + encodeURIComponent(run.data_url);
+
+    gesso.createLink(parent, data_url, "Data");
+    gesso.createText(parent, ", ");
+
+    if (run.tests_url == null) {
+        gesso.createSpan(parent, "disabled", "Tests");
+    } else {
+        gesso.createLink(parent, run.tests_url, "Tests");
+    }
+}
+
+function renderPanelView(parent) {
+    let elem = gesso.createDiv(parent, "panel");
+
+    let groups = state.data.groups;
+    let categories = state.data.categories;
+    let jobs = state.data.jobs;
+
+    let selection = state.query.category;
+
+    for (let groupId of Object.keys(groups)) {
+        let group = groups[groupId];
+        let category = categories[group.category_id];
+
+        if (selection !== "all" && selection !== category.key) {
+            continue;
+        }
+
+        let groupElem = gesso.createDiv(elem, "group");
+
+        gesso.createElement(groupElem, "h2", group.name);
+
+        let jobContainer = gesso.createDiv(groupElem, "job-container");
+        let jobIds = group.job_ids;
+
+        for (let j = 0; j < jobIds.length; j++) {
+            let job = jobs[jobIds[j]];
+            renderJob(jobContainer, job);
+        }
+    }
+}
+
+function renderJob(parent, job) {
+    let elem = gesso.createDiv(parent, "job");
+
+    function getName(obj) {
+        if (obj != null) {
+            return obj.name;
         }
     }
 
-    renderPanelView(parent) {
-        let elem = gesso.createDiv(parent, "panel");
+    function capitalize(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
 
-        let groups = this.state.data.groups;
-        let categories = this.state.data.categories;
-        let jobs = this.state.data.jobs;
+    const fields = {
+        "agent": getName(state.data.agents[job.agent_id]),
+        "name": job.name,
+        "variant": job.variant,
+    }
 
-        let selection = this.state.query.category;
+    let summary = gesso.createLink(elem, job.html_url, {"class": "job-summary"});
 
-        for (let groupId of Object.keys(groups)) {
-            let group = groups[groupId];
-            let category = categories[group.category_id];
+    const group = state.data.groups[job.group_id];
 
-            if (selection !== "all" && selection !== category.key) {
-                continue;
-            }
-
-            let groupElem = gesso.createDiv(elem, "group");
-
-            gesso.createElement(groupElem, "h2", group.name);
-
-            let jobContainer = gesso.createDiv(groupElem, "job-container");
-            let jobIds = group.job_ids;
-
-            for (let j = 0; j < jobIds.length; j++) {
-                let job = jobs[jobIds[j]];
-                this.renderJob(jobContainer, job);
-            }
+    for (const name of group.fields) {
+        if (fields[name] != null) {
+            gesso.createDiv(summary, null, fields[name]);
         }
     }
 
-    renderJob(parent, job) {
-        let elem = gesso.createDiv(parent, "job");
+    let currRun = job.current_run;
+    let prevRun = job.previous_run;
 
-        function getName(obj) {
-            if (obj != null) {
-                return obj.name;
-            }
+    if (currRun == null) {
+        elem.classList.add("no-data");
+        return;
+    }
+
+    summary.setAttribute("href", currRun.html_url);
+
+    if (currRun.logs_url != null) {
+        summary.setAttribute("href", currRun.logs_url);
+    }
+
+    if (currRun.tests_url != null) {
+        summary.setAttribute("href", currRun.tests_url);
+    }
+
+    if (currRun.status === "PASSED") {
+        elem.classList.add("passed");
+    } else if (currRun.status === "FAILED") {
+        elem.classList.add("failed");
+
+        if (prevRun != null && prevRun.status === "PASSED") {
+            elem.classList.add("blinky");
         }
+    }
 
-        function capitalize(string) {
-            return string.charAt(0).toUpperCase() + string.slice(1);
-        }
+    if (job.update_failures >= 10) {
+        elem.classList.add("stale-data");
+    }
 
-        const fields = {
-            "agent": getName(this.state.data.agents[job.agent_id]),
-            "name": job.name,
-            "variant": job.variant,
-        }
+    let ago = null;
 
-        let summary = gesso.createLink(elem, job.html_url, {"class": "job-summary"});
+    if (currRun.start_time != null) {
+        ago = state.renderTime - currRun.start_time;
+    }
 
-        const group = this.state.data.groups[job.group_id];
+    gesso.createDiv(summary, "summary-start-time", gesso.formatDurationBrief(ago));
 
-        for (const name of group.fields) {
-            if (fields[name] != null) {
-                gesso.createDiv(summary, null, fields[name]);
-            }
-        }
+    renderJobDetail(elem, job);
+}
 
-        let currRun = job.current_run;
-        let prevRun = job.previous_run;
+function renderJobDetail(parent, job) {
+    let elem = gesso.createDiv(parent, "job-detail");
 
-        if (currRun == null) {
-            elem.classList.add("no-data");
-            return;
-        }
+    let agent = state.data.agents[job.agent_id];
+    let currRun = job.current_run;
+    let prevRun = job.previous_run;
 
-        summary.setAttribute("href", currRun.html_url);
+    let table = gesso.createElement(elem, "table");
+    let tbody = gesso.createElement(table, "tbody");
+    let td;
 
-        if (currRun.logs_url != null) {
-            summary.setAttribute("href", currRun.logs_url);
-        }
+    td = createJobDetailField(tbody, "Agent");
+    createObjectLink(td, agent);
 
-        if (currRun.tests_url != null) {
-            summary.setAttribute("href", currRun.tests_url);
-        }
+    td = createJobDetailField(tbody, "Job");
+    createObjectLink(td, job);
 
-        if (currRun.status === "PASSED") {
-            elem.classList.add("passed");
-        } else if (currRun.status === "FAILED") {
-            elem.classList.add("failed");
-
-            if (prevRun != null && prevRun.status === "PASSED") {
-                elem.classList.add("blinky");
-            }
-        }
-
-        if (job.update_failures >= 10) {
-            elem.classList.add("stale-data");
-        }
-
-        let ago = null;
+    if (currRun != null) {
+        let ago = "-";
 
         if (currRun.start_time != null) {
-            ago = this.state.renderTime - currRun.start_time;
+            let millisAgo = state.renderTime - currRun.start_time;
+            ago = gesso.formatDurationBrief(millisAgo) + " ago";
         }
 
-        gesso.createDiv(summary, "summary-start-time", gesso.formatDurationBrief(ago));
+        let duration = gesso.formatDurationBrief(currRun.duration);
 
-        this.renderJobDetail(elem, job);
+        td = createJobDetailField(tbody, "Run");
+        createObjectLink(td, currRun, currRun.number);
+
+        createJobDetailField(tbody, "Start time", ago);
+        createJobDetailField(tbody, "Duration", duration);
+        createJobDetailField(tbody, "Status", currRun.status);
+
+        if (prevRun == null) {
+            createJobDetailField(tbody, "Prev status", "-");
+        } else {
+            createJobDetailField(tbody, "Prev status", prevRun.status);
+        }
+
+        td = createJobDetailField(tbody, "Links");
+        renderRunLinks(td, currRun);
     }
+}
 
-    renderJobDetail(parent, job) {
-        let elem = gesso.createDiv(parent, "job-detail");
+function createJobDetailField(parent, name, text) {
+    let tr = gesso.createElement(parent, "tr");
+    let th = gesso.createElement(tr, "th", name);
+    let td = gesso.createElement(tr, "td", text);
 
-        let agent = this.state.data.agents[job.agent_id];
+    return td;
+}
+
+function renderTableView(parent) {
+    let elem = gesso.createElement(parent, "table",
+                                   {"class": "jobs", "data-sortable": "data-sortable"});
+
+    let thead = gesso.createElement(elem, "thead");
+    let tr = gesso.createElement(thead, "tr");
+
+    gesso.createElement(tr, "th", "Agent");
+    gesso.createElement(tr, "th", "Group");
+    gesso.createElement(tr, "th", "Name");
+    gesso.createElement(tr, "th", "Variant");
+    gesso.createElement(tr, "th", "Latest run");
+    gesso.createElement(tr, "th", "Start time");
+    gesso.createElement(tr, "th", "Duration");
+    gesso.createElement(tr, "th", "Status");
+    gesso.createElement(tr, "th", "Prev status");
+    gesso.createElement(tr, "th", "Links");
+
+    let tbody = gesso.createElement(elem, "tbody");
+
+    let jobs = state.data.jobs;
+    let groups = state.data.groups;
+    let categories = state.data.categories;
+    let agents = state.data.agents;
+
+    let selection = state.query.category;
+
+    for (let jobId of Object.keys(jobs)) {
+        let job = jobs[jobId];
+        let group = groups[job.group_id];
+        let category = categories[group.category_id];
+
+        if (selection !== "all" && selection !== category.key) {
+            continue;
+        }
+
+        let agent = agents[job.agent_id];
         let currRun = job.current_run;
         let prevRun = job.previous_run;
 
-        let table = gesso.createElement(elem, "table");
-        let tbody = gesso.createElement(table, "tbody");
+        let tr = gesso.createElement(tbody, "tr");
         let td;
 
-        td = this.createJobDetailField(tbody, "Agent");
-        this.createObjectLink(td, agent);
+        td = gesso.createElement(tr, "td");
+        createObjectLink(td, agent);
 
-        td = this.createJobDetailField(tbody, "Job");
-        this.createObjectLink(td, job);
+        gesso.createElement(tr, "td", group.name);
 
-        if (currRun != null) {
+        td = gesso.createElement(tr, "td");
+        createObjectLink(td, job);
+
+        gesso.createElement(tr, "td", job.variant || "-");
+
+        if (currRun) {
+            let duration = gesso.formatDurationBrief(currRun.duration);
             let ago = "-";
+            let prevRunStatus = "-";
 
-            if (currRun.start_time != null) {
-                let millisAgo = this.state.renderTime - currRun.start_time;
+            if (currRun.start_time) {
+                let millisAgo = state.renderTime - currRun.start_time;
                 ago = gesso.formatDurationBrief(millisAgo) + " ago";
             }
 
-            let duration = gesso.formatDurationBrief(currRun.duration);
-
-            td = this.createJobDetailField(tbody, "Run");
-            this.createObjectLink(td, currRun, currRun.number);
-
-            this.createJobDetailField(tbody, "Start time", ago);
-            this.createJobDetailField(tbody, "Duration", duration);
-            this.createJobDetailField(tbody, "Status", currRun.status);
-
-            if (prevRun == null) {
-                this.createJobDetailField(tbody, "Prev status", "-");
-            } else {
-                this.createJobDetailField(tbody, "Prev status", prevRun.status);
+            if (prevRun) {
+                prevRunStatus = prevRun.status;
             }
-
-            td = this.createJobDetailField(tbody, "Links");
-            this.renderRunLinks(td, currRun);
-        }
-    }
-
-    createJobDetailField(parent, name, text) {
-        let tr = gesso.createElement(parent, "tr");
-        let th = gesso.createElement(tr, "th", name);
-        let td = gesso.createElement(tr, "td", text);
-
-        return td;
-    }
-
-    renderTableView(parent) {
-        let elem = gesso.createElement(parent, "table",
-                                       {"class": "jobs", "data-sortable": "data-sortable"});
-
-        let thead = gesso.createElement(elem, "thead");
-        let tr = gesso.createElement(thead, "tr");
-
-        gesso.createElement(tr, "th", "Agent");
-        gesso.createElement(tr, "th", "Group");
-        gesso.createElement(tr, "th", "Name");
-        gesso.createElement(tr, "th", "Variant");
-        gesso.createElement(tr, "th", "Latest run");
-        gesso.createElement(tr, "th", "Start time");
-        gesso.createElement(tr, "th", "Duration");
-        gesso.createElement(tr, "th", "Status");
-        gesso.createElement(tr, "th", "Prev status");
-        gesso.createElement(tr, "th", "Links");
-
-        let tbody = gesso.createElement(elem, "tbody");
-
-        let jobs = this.state.data.jobs;
-        let groups = this.state.data.groups;
-        let categories = this.state.data.categories;
-        let agents = this.state.data.agents;
-
-        let selection = this.state.query.category;
-
-        for (let jobId of Object.keys(jobs)) {
-            let job = jobs[jobId];
-            let group = groups[job.group_id];
-            let category = categories[group.category_id];
-
-            if (selection !== "all" && selection !== category.key) {
-                continue;
-            }
-
-            let agent = agents[job.agent_id];
-            let currRun = job.current_run;
-            let prevRun = job.previous_run;
-
-            let tr = gesso.createElement(tbody, "tr");
-            let td;
 
             td = gesso.createElement(tr, "td");
-            this.createObjectLink(td, agent);
+            createObjectLink(td, currRun, currRun.number);
 
-            gesso.createElement(tr, "td", group.name);
+            gesso.createElement(tr, "td", {text: ago, "data-value": currRun.start_time});
+            gesso.createElement(tr, "td", {text: duration, "data-value": currRun.duration});
+            gesso.createElement(tr, "td", currRun.status);
+            gesso.createElement(tr, "td", prevRunStatus);
 
             td = gesso.createElement(tr, "td");
-            this.createObjectLink(td, job);
-
-            gesso.createElement(tr, "td", job.variant || "-");
-
-            if (currRun) {
-                let duration = gesso.formatDurationBrief(currRun.duration);
-                let ago = "-";
-                let prevRunStatus = "-";
-
-                if (currRun.start_time) {
-                    let millisAgo = this.state.renderTime - currRun.start_time;
-                    ago = gesso.formatDurationBrief(millisAgo) + " ago";
-                }
-
-                if (prevRun) {
-                    prevRunStatus = prevRun.status;
-                }
-
-                td = gesso.createElement(tr, "td");
-                this.createObjectLink(td, currRun, currRun.number);
-
-                gesso.createElement(tr, "td", {text: ago, "data-value": currRun.start_time});
-                gesso.createElement(tr, "td", {text: duration, "data-value": currRun.duration});
-                gesso.createElement(tr, "td", currRun.status);
-                gesso.createElement(tr, "td", prevRunStatus);
-
-                td = gesso.createElement(tr, "td");
-                this.renderRunLinks(td, currRun);
-            } else {
-                gesso.createElement(tr, "td");
-                gesso.createElement(tr, "td");
-                gesso.createElement(tr, "td");
-                gesso.createElement(tr, "td");
-                gesso.createElement(tr, "td");
-                gesso.createElement(tr, "td");
-            }
-        }
-    }
-
-    renderSiteIcon() {
-        const jobs = this.state.data.jobs;
-        let passed = 0;
-        let failed = 0;
-
-        for (let jobId of Object.keys(jobs)) {
-            let job = jobs[jobId];
-
-            if (!job.current_run) {
-                continue;
-            }
-
-            if (job.current_run.status == "PASSED") {
-                passed += 1;
-            } else if (job.current_run.status == "FAILED") {
-                failed += 1;
-            }
-        }
-
-        const total = passed + failed;
-        let icon;
-
-        if (total == 0) {
-            return;
-        }
-
-        if (failed / total >= 0.75) {
-            icon = "/images/icon-4.svg";
-        } else if (failed / total >= 0.5) {
-            icon = "/images/icon-3.svg";
-        } else if (failed / total >= 0.25) {
-            icon = "/images/icon-2.svg";
-        } else if (failed / total >= 0.0) {
-            icon = "/images/icon-1.svg";
+            renderRunLinks(td, currRun);
         } else {
-            icon = "/images/icon-0.svg";
-        }
-
-        $("link[rel*='icon']").href = icon;
-    }
-
-    renderPage() {
-        console.log("Rendering page");
-
-        this.state.renderTime = new Date().getTime();
-
-        this.renderSiteIcon();
-
-        document.title = this.state.data.title;
-
-        let elem = gesso.createDiv(null, "#content");
-
-        this.renderHeader(elem);
-        this.renderBody(elem);
-        this.renderFooter(elem);
-
-        gesso.replaceElement($("#content"), elem);
-    }
-
-    checkFreshness() {
-        console.log("Checking freshness");
-
-        let failedAttempts = this.state.dataFetchState.failedAttempts;
-
-        if (failedAttempts == 0) {
-            $("body").classList.remove("disconnected");
-        } else if (failedAttempts >= 10) {
-            $("body").classList.add("disconnected");
+            gesso.createElement(tr, "td");
+            gesso.createElement(tr, "td");
+            gesso.createElement(tr, "td");
+            gesso.createElement(tr, "td");
+            gesso.createElement(tr, "td");
+            gesso.createElement(tr, "td");
         }
     }
 }

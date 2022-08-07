@@ -80,15 +80,6 @@ class BlinkyCommand:
         except KeyboardInterrupt:
             pass
 
-class Server(_brbn.Server):
-    def __init__(self, app, host="", port=8080):
-        super().__init__(app, host=host, port=port, lifespan=ModelUpdateTask)
-
-        self.add_route("/api/data", endpoint=DataHandler(), methods=["GET", "HEAD"])
-        self.add_route("/proxy", endpoint=ProxyHandler(), methods=["GET", "HEAD"])
-
-        self.add_static_files("", _os.path.join(self.app.home, "static"))
-
 class ModelUpdateTask():
     def __init__(self, app):
         self.app = app
@@ -106,6 +97,27 @@ class ModelUpdateTask():
             elapsed = _time.time() - start
 
             await _asyncio.sleep(max(0, 30 * 60 - elapsed))
+
+class Server(_brbn.Server):
+    def __init__(self, app, host="", port=8080):
+        super().__init__(app, host=host, port=port, lifespan=ModelUpdateTask)
+
+        main = MainHandler() # Makes sense to take app here XXX
+
+        self.add_route("/", main, methods=["GET", "HEAD"])
+        self.add_route("/pretty", main, methods=["GET", "HEAD"])
+
+        self.add_route("/api/data", endpoint=DataHandler(), methods=["GET", "HEAD"]) # XXX default to GET and HEAD (and support method=)
+        self.add_route("/proxy", endpoint=ProxyHandler(), methods=["GET", "HEAD"])
+
+        self.add_static_files("", _os.path.join(self.app.home, "static"))
+
+class MainHandler(_brbn.Handler):
+    async def render(self, request, entity):
+        with open(_os.path.join(request.app.home, "static", "main.html")) as file:
+            html = file.read()
+
+        return _brbn.HtmlResponse(html)
 
 class DataHandler(_brbn.Handler):
     async def process(self, request):
