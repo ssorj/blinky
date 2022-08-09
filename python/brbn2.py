@@ -20,10 +20,9 @@
 import asyncio as _asyncio
 import logging as _logging
 import os as _os
-import starlette.exceptions as _exceptions
+import re as _re
 import starlette.requests as _requests
 import starlette.responses as _responses
-import starlette.routing as _routing
 import starlette.staticfiles as _staticfiles
 import traceback as _traceback
 import uvicorn as _uvicorn
@@ -36,55 +35,95 @@ class Server:
         self.host = host
         self.port = port
 
-        self._router = _Router(lifespan=_LifespanContext(self))
         self._startup_coros = list()
-
-    def add_route(self, path, endpoint, method=None, methods=["GET", "HEAD"]):
-        assert path.startswith("/"), path
-
-        if method is not None:
-            methods = [method]
-
-        self._router.add_route(path, endpoint=endpoint, methods=methods)
-
-    def add_static_files(self, path, dir):
-        assert path.startswith("/"), path
-
-        self._router.mount(path, app=_staticfiles.StaticFiles(directory=dir, html=True))
+        self._shutdown_coros = list()
+        self._routes = list()
 
     def add_startup_task(self, coro):
         self._startup_coros.append(coro)
 
+    def add_shutdown_task(self, coro):
+        self._shutdown_coros.append(coro)
+
+    def add_route(self, path, endpoint):
+        _log.info(f"Adding route: {path} -> {endpoint}")
+
+        assert path.startswith("/"), path
+        assert path == "/" or not path.endswith("/"), path
+
+        self._routes.append(_Route(path, endpoint))
+
+    def add_static_files(self, path, dir):
+        assert path.startswith("/"), path
+
+        # self._router.mount(path, app=_staticfiles.StaticFiles(directory=dir, html=True))
+
     def run(self):
-        _uvicorn.run(self._router, host=self.host, port=self.port)
+        _uvicorn.run(self, host=self.host, port=self.port, lifespan="on")
 
-class _Router(_routing.Router):
     async def __call__(self, scope, receive, send):
-        try:
-            await super().__call__(scope, receive, send)
-        except _EndpointException as e:
-            await e.response(scope, receive, send)
-        except _exceptions.HTTPException as e:
-            if e.status_code == 404:
-                await NotFoundResponse()(scope, receive, send)
-            else:
-                raise
-        except Exception as e:
-            await ServerErrorResponse(e)(scope, receive, send)
+        type = scope["type"]
 
-class _LifespanContext():
-    def __init__(self, server):
-        self.server = server
+        if type == "http":
+            await self._handle_http_event(scope, receive, send)
+        elif type == "lifespan":
+            await self._handle_lifespan_event(scope, receive, send)
+        else:
+            assert False, type
 
-    def __call__(self, asgi_app):
-        return self
+    async def _handle_http_event(self, scope, receive, send):
+        path = scope["path"]
 
-    async def __aenter__(self):
-        for coro in self.server._startup_coros:
-            _asyncio.get_event_loop().create_task(coro)
+        for route in self._routes:
+            if route.regex.fullmatch(path) is not None:
+                try:
+                    await route.endpoint(scope, receive, send)
+                except _EndpointException as e:
+                    await e.response(scope, receive, send)
+                except Exception as e:
+                    await ServerErrorResponse(e)(scope, receive, send)
 
-    async def __aexit__(self, exc_type, exc, exc_tb):
-        pass
+                return
+
+        # XXX
+
+        file_path = _os.path.join("/home/jross/code/blinky/static", path[1:])
+
+        print(111, file_path)
+
+        if _os.path.exists(file_path):
+            print(222)
+            await FileResponse(file_path)(scope, receive, send)
+            return
+
+        # End XXX
+
+        await NotFoundResponse()(scope, receive, send)
+
+    async def _handle_lifespan_event(self, scope, receive, send):
+        message = await receive()
+        type = message["type"]
+
+        if type == "lifespan.startup":
+            for coro in self._startup_coros:
+                _asyncio.get_event_loop().create_task(coro)
+
+            await send({"type": "lifespan.startup.complete"})
+        elif type == "lifespan.shutdown":
+            for coro in self._shutdown_coros:
+                _asyncio.get_event_loop().create_task(coro)
+
+            await send({"type": "lifespan.shutdown.complete"})
+            return
+        else:
+            assert False, type
+
+class _Route:
+    def __init__(self, path, endpoint):
+        self.path = path
+        self.endpoint = endpoint
+        self.regex = _re.sub(r"{(\w+)}", r"(?P<\1>[^/]+)", path) + r"/*"
+        self.regex = _re.compile(self.regex)
 
 class Request:
     def __init__(self, scope, receive):

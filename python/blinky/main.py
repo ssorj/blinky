@@ -73,6 +73,9 @@ class BlinkyCommand:
         self.server.add_route("/api/data", data)
         self.server.add_route("/proxy", proxy)
 
+        self.server.add_route("/test/{id}", main)
+        self.server.add_route("/test/{id}/patient/{name}", main)
+
         self.server.add_static_files("/", self.static_dir)
 
         self.server.add_startup_task(self.update())
@@ -80,6 +83,7 @@ class BlinkyCommand:
     def main(self):
         _logging.basicConfig(level=_logging.ERROR)
         _logging.getLogger("blinky").setLevel(_logging.INFO)
+        _logging.getLogger("brbn").setLevel(_logging.INFO)
 
         try:
             self.init()
