@@ -18,10 +18,10 @@
 #
 
 import asyncio as _asyncio
+import json as _json
 import logging as _logging
 import os as _os
 import re as _re
-import starlette.responses as _responses
 import traceback as _traceback
 import urllib as _urllib
 import uvicorn as _uvicorn
@@ -165,6 +165,31 @@ class Request:
     async def json(self):
         return _json.loads(self.body())
 
+class Response:
+    def __init__(self, body, status_code=200):
+        self.body = body
+        self.status_code = status_code
+        self.headers = dict()
+
+    def set_header(self, name, value):
+        self.headers[name.lower()] = value
+
+    async def __call__(self, scope, receive, send):
+        start_message = {
+            "type": "http.response.start",
+            "status": self.status_code,
+            "headers": [(k.encode("utf-8"), v.encode("utf-8")) for k, v in self.headers.items()],
+        }
+
+        body_message = {
+            "type": "http.response.body",
+            "body": self.body.encode("utf-8"),
+            "more_body": False,
+        }
+
+        await send(start_message)
+        await send(body_message)
+
 class Endpoint:
     def __init__(self, app):
         self.app = app
@@ -193,7 +218,7 @@ class Endpoint:
             assert response is not None
 
         if server_etag is not None:
-            response.headers["etag"] = server_etag
+            response.set_header("etag", server_etag)
 
         return response
 
@@ -223,17 +248,21 @@ class NotFoundError(_EndpointException):
     def __init__(self, message):
         super().__init__(message, NotFoundResponse(message))
 
-class Response(_responses.Response):
+class PlainTextResponse(Response):
+    def __init__(self, body, status_code=200):
+        super().__init__(body, status_code=status_code)
+        self.set_header("content-type", "text/plain")
+
+class HtmlResponse(Response):
     pass
 
-class PlainTextResponse(_responses.PlainTextResponse):
-    pass
+class FileResponse(Response):
+    def __init__(self, fs_path):
+        with open(fs_path) as file:
+            super().__init__(file.read())
 
-class HtmlResponse(_responses.HTMLResponse):
-    pass
-
-class FileResponse(_responses.FileResponse):
-    pass
+        if fs_path.endswith(".js"):
+            self.set_header("content-type", "application/javascript")
 
 class OkResponse(Response):
     def __init__(self):
@@ -256,16 +285,18 @@ class ServerErrorResponse(PlainTextResponse):
         super().__init__(f"Internal server error: {exception}\n", 500)
         _traceback.print_exc()
 
-class JsonResponse(_responses.JSONResponse):
-    pass
+class JsonResponse(Response):
+    def __init__(self, data):
+        super().__init__(_json.dumps(data))
+        self.set_header("content-type", "application/json")
 
 class BadJsonResponse(PlainTextResponse):
     def __init__(self, exception):
         super().__init__(f"Bad request: Failure decoding JSON: {exception}\n", 400)
 
-class CompressedJsonResponse(Response):
-    def __init__(self, content):
-        super().__init__(content, headers={"Content-Encoding": "gzip"}, media_type="application/json")
+# class CompressedJsonResponse(Response):
+#     def __init__(self, content):
+#         super().__init__(content, headers={"Content-Encoding": "gzip"}, media_type="application/json")
 
 _directory_index_template = """
 <html>

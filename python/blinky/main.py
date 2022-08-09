@@ -118,7 +118,10 @@ class ProxyEndpoint(_brbn.Endpoint):
             return await client.get(url)
 
     async def render(self, request, proxied_response):
-        return _brbn.Response(proxied_response.text, media_type=proxied_response.headers["content-type"])
+        response = _brbn.Response(proxied_response.text)
+        response.set_header("content-type", proxied_response.headers["content-type"])
+
+        return response
 
 class FileEndpoint(_brbn.Endpoint):
     async def respond(self, request):
