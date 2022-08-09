@@ -21,10 +21,9 @@ import asyncio as _asyncio
 import logging as _logging
 import os as _os
 import re as _re
-import starlette.requests as _requests
 import starlette.responses as _responses
-import starlette.staticfiles as _staticfiles
 import traceback as _traceback
+import urllib as _urllib
 import uvicorn as _uvicorn
 
 _log = _logging.getLogger("brbn")
@@ -53,11 +52,6 @@ class Server:
 
         self._routes.append(_Route(path, endpoint))
 
-    def add_static_files(self, path, dir):
-        assert path.startswith("/"), path
-
-        # self._router.mount(path, app=_staticfiles.StaticFiles(directory=dir, html=True))
-
     def run(self):
         _uvicorn.run(self, host=self.host, port=self.port, lifespan="on")
 
@@ -75,7 +69,15 @@ class Server:
         path = scope["path"]
 
         for route in self._routes:
-            if route.regex.fullmatch(path) is not None:
+            match = route.regex.fullmatch(path)
+
+            if match is not None:
+                # XXX
+                # print("route.regex", route.regex)
+                # print("match.groupdict()", match.groupdict())
+
+                scope["brbn.path_params"] = match.groupdict()
+
                 try:
                     await route.endpoint(scope, receive, send)
                 except _EndpointException as e:
@@ -84,19 +86,6 @@ class Server:
                     await ServerErrorResponse(e)(scope, receive, send)
 
                 return
-
-        # XXX
-
-        file_path = _os.path.join("/home/jross/code/blinky/static", path[1:])
-
-        print(111, file_path)
-
-        if _os.path.exists(file_path):
-            print(222)
-            await FileResponse(file_path)(scope, receive, send)
-            return
-
-        # End XXX
 
         await NotFoundResponse()(scope, receive, send)
 
@@ -122,40 +111,59 @@ class _Route:
     def __init__(self, path, endpoint):
         self.path = path
         self.endpoint = endpoint
-        self.regex = _re.sub(r"{(\w+)}", r"(?P<\1>[^/]+)", path) + r"/*"
-        self.regex = _re.compile(self.regex)
+
+        regex = _re.sub(r"/\*$", r"(?P<subpath>.*)", path)
+        regex = _re.sub(r"{(\w+)}", r"(?P<\1>[^/]+)", regex)
+
+        self.regex = _re.compile(regex)
 
 class Request:
     def __init__(self, scope, receive):
-        self._request = _requests.Request(scope, receive)
+        self._scope = scope
+        self._receive = receive
 
-    def get(self, param, default=None):
-        try:
-            return self._request.query_params[param]
-        except KeyError:
-            try:
-                return self._request.path_params[param]
-            except KeyError:
-                return default
-
-    def require(self, param):
-        value = self.get(param)
-
-        if value is None:
-            raise BadRequestError(f"Required parameter not found: {param}")
-
-        return value
+        self._params = {k: v for k, v in _urllib.parse.parse_qsl(scope["query_string"].decode("utf-8"))}
+        self._params.update(scope["brbn.path_params"])
 
     @property
     def method(self):
-        return self._request.method
+        return self._scope["method"]
 
     @property
-    def headers(self):
-        return self._request.headers
+    def path(self):
+        return self._scope["path"]
 
-    def json(self):
-        return self._request.json()
+    def get(self, name, default=None):
+        return self._params.get(name, default)
+
+    def require(self, name):
+        try:
+            return self._params[name]
+        except KeyError:
+            raise BadRequestError(f"Required parameter not found: {name}")
+
+    def get_header(self, name):
+        name = name.encode("utf-8").lower()
+
+        for header_name, header_value in self._scope["headers"]:
+            if header_name.lower() == name:
+                return header_value.decode("utf-8")
+
+    async def body(self):
+        message = await self._receive()
+        type = message["type"]
+
+        if type == "http.request":
+            assert message.get("more_body") in (None, False) # XXX Need to handle streamed data
+
+            return message.get("body", b"")
+        elif type == "http.disconnect":
+            assert False # XXX Need a disconnect exception
+        else:
+            assert False
+
+    async def json(self):
+        return _json.loads(self.body())
 
 class Endpoint:
     def __init__(self, app):
@@ -169,11 +177,11 @@ class Endpoint:
 
     async def respond(self, request):
         entity = await self.process(request)
-        server_etag = self.etag(request, entity)
+        server_etag = await self.etag(request, entity)
 
         if server_etag is not None:
             server_etag = f'"{server_etag}"'
-            client_etag = request.headers.get("if-none-match")
+            client_etag = request.get_header("if-none-match")
 
             if client_etag == server_etag:
                 return NotModifiedResponse()
@@ -192,8 +200,8 @@ class Endpoint:
     async def process(self, request):
         return None
 
-    def etag(self, request, entity):
-        pass
+    async def etag(self, request, entity):
+        return None
 
     async def render(self, request, entity):
         return OkResponse()

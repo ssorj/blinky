@@ -19,7 +19,7 @@
 
 import argparse as _argparse
 import asyncio as _asyncio
-import brbn2 as _brbn
+import brbn as _brbn
 import httpx as _httpx
 import logging as _logging
 import os as _os
@@ -67,16 +67,13 @@ class BlinkyCommand:
         main = MainEndpoint(self)
         data = DataEndpoint(self)
         proxy = ProxyEndpoint(self)
+        files = FileEndpoint(self)
 
         self.server.add_route("/", main)
-        self.server.add_route("/pretty", main)
         self.server.add_route("/api/data", data)
+        self.server.add_route("/pretty", main)
         self.server.add_route("/proxy", proxy)
-
-        self.server.add_route("/test/{id}", main)
-        self.server.add_route("/test/{id}/patient/{name}", main)
-
-        self.server.add_static_files("/", self.static_dir)
+        self.server.add_route("/*", files)
 
         self.server.add_startup_task(self.update())
 
@@ -107,7 +104,7 @@ class DataEndpoint(_brbn.Endpoint):
     async def process(self, request):
         return self.app.model
 
-    def etag(self, request, model):
+    async def etag(self, request, model):
         return model.update_time
 
     async def render(self, request, model):
@@ -115,10 +112,26 @@ class DataEndpoint(_brbn.Endpoint):
 
 class ProxyEndpoint(_brbn.Endpoint):
     async def process(self, request):
-        url = request.require("url") # XXX
+        url = request.require("url")
 
         async with _httpx.AsyncClient() as client:
             return await client.get(url)
 
     async def render(self, request, proxied_response):
         return _brbn.Response(proxied_response.text, media_type=proxied_response.headers["content-type"])
+
+class FileEndpoint(_brbn.Endpoint):
+    async def respond(self, request):
+        try:
+            return await super().respond(request)
+        except FileNotFoundError:
+            return _brbn.NotFoundResponse()
+
+    async def process(self, request):
+        return _os.path.join(self.app.static_dir, request.get("subpath")[1:]) # XXX This won't work with an exact match
+
+    async def etag(self, request, fs_path):
+        return _os.path.getmtime(fs_path)
+
+    async def render(self, request, fs_path):
+        return _brbn.FileResponse(fs_path)
