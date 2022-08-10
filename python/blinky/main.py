@@ -21,6 +21,7 @@ import argparse as _argparse
 import asyncio as _asyncio
 import brbn as _brbn
 import httpx as _httpx
+import json as _json
 import logging as _logging
 import os as _os
 import runpy as _runpy
@@ -64,10 +65,10 @@ class BlinkyCommand:
 
         self.server = _brbn.Server(self, host="", port=8080)
 
-        main = MainEndpoint(self)
-        data = DataEndpoint(self)
-        proxy = ProxyEndpoint(self)
-        files = FileEndpoint(self)
+        main = MainResource(self)
+        data = DataResource(self)
+        proxy = ProxyResource(self)
+        files = _brbn.FileResource(self)
 
         self.server.add_route("/", main)
         self.server.add_route("/api/data", data)
@@ -96,45 +97,34 @@ class BlinkyCommand:
 
             await _asyncio.sleep(max(0, 30 * 60 - elapsed))
 
-class MainEndpoint(_brbn.Endpoint):
+# XXX Use FileResource here once I make it work
+class MainResource(_brbn.Resource):
     async def render(self, request, entity):
-        return _brbn.FileResponse(_os.path.join(self.app.static_dir, "main.html"))
+        with open(_os.path.join(self.app.static_dir, "main.html"), "rb") as file:
+            return file.read()
 
-class DataEndpoint(_brbn.Endpoint):
+class DataResource(_brbn.Resource):
     async def process(self, request):
         return self.app.model
 
-    async def etag(self, request, model):
+    async def get_etag(self, request, model):
         return model.update_time
 
-    async def render(self, request, model):
-        return _brbn.JsonResponse(model.data())
+    async def get_content_type(self, request, model):
+        return "text/json"
 
-class ProxyEndpoint(_brbn.Endpoint):
+    async def render(self, request, model):
+        return _json.dumps(model.data()).encode("utf-8")
+
+class ProxyResource(_brbn.Resource):
     async def process(self, request):
         url = request.require("url")
 
         async with _httpx.AsyncClient() as client:
             return await client.get(url)
 
+    async def get_content_type(self, request, proxied_response):
+        return proxied_response.headers["content-type"]
+
     async def render(self, request, proxied_response):
-        response = _brbn.Response(proxied_response.text)
-        response.set_header("content-type", proxied_response.headers["content-type"])
-
-        return response
-
-class FileEndpoint(_brbn.Endpoint):
-    async def respond(self, request):
-        try:
-            return await super().respond(request)
-        except FileNotFoundError:
-            return _brbn.NotFoundResponse()
-
-    async def process(self, request):
-        return _os.path.join(self.app.static_dir, request.get("subpath")[1:]) # XXX This won't work with an exact match
-
-    async def etag(self, request, fs_path):
-        return _os.path.getmtime(fs_path)
-
-    async def render(self, request, fs_path):
-        return _brbn.FileResponse(fs_path)
+        return proxied_response.text.encode("utf-8")

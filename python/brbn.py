@@ -44,13 +44,13 @@ class Server:
     def add_shutdown_task(self, coro):
         self._shutdown_coros.append(coro)
 
-    def add_route(self, path, endpoint):
-        _log.info(f"Adding route: {path} -> {endpoint}")
+    def add_route(self, path, resource):
+        _log.info(f"Adding route: {path} -> {resource}")
 
         assert path.startswith("/"), path
         assert path == "/" or not path.endswith("/"), path
 
-        self._routes.append(_Route(path, endpoint))
+        self._routes.append(_Route(path, resource))
 
     def run(self):
         _uvicorn.run(self, host=self.host, port=self.port, lifespan="on")
@@ -72,22 +72,22 @@ class Server:
             match = route.regex.fullmatch(path)
 
             if match is not None:
-                # XXX
-                # print("route.regex", route.regex)
-                # print("match.groupdict()", match.groupdict())
-
                 scope["brbn.path_params"] = match.groupdict()
 
                 try:
-                    await route.endpoint(scope, receive, send)
-                except _EndpointException as e:
-                    await e.response(scope, receive, send)
+                    await route.resource(scope, receive, send)
+                # except ResourceException as e:
+                #     # XXX Move this into resource
+                #     await Request(scope, receive, send).respond(500, _traceback.format_exc())
                 except Exception as e:
-                    await ServerErrorResponse(e)(scope, receive, send)
+                    _log.exception(e)
+                    # XXX Move this into resource
+                    trace = _traceback.format_exc()
+                    await Request(scope, receive, send).respond(500, trace.encode("utf-8"))
 
                 return
 
-        await NotFoundResponse()(scope, receive, send)
+        await Request(scope, receive, send).respond(404, b"Not found")
 
     async def _handle_lifespan_event(self, scope, receive, send):
         message = await receive()
@@ -108,22 +108,82 @@ class Server:
             assert False, type
 
 class _Route:
-    def __init__(self, path, endpoint):
+    def __init__(self, path, resource):
         self.path = path
-        self.endpoint = endpoint
+        self.resource = resource
 
         regex = _re.sub(r"/\*$", r"(?P<subpath>.*)", path)
         regex = _re.sub(r"{(\w+)}", r"(?P<\1>[^/]+)", regex)
 
         self.regex = _re.compile(regex)
 
+class Resource:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        request = Request(scope, receive, send)
+        await self.receive_request(request)
+
+    async def receive_request(self, request):
+        entity = await self.process(request)
+        await self.send_response(request, entity)
+
+    async def send_response(self, request, entity):
+        # XXX Need to determine if any of the logic below belongs in
+        # receive_request
+
+        server_etag = await self.get_etag(request, entity)
+
+        if server_etag is not None:
+            server_etag = f'"{server_etag}"'
+            client_etag = request.get_header("if-none-match")
+
+            if client_etag == server_etag:
+                await request.respond(304, b"")
+                return
+
+        if request.method == "HEAD":
+            await request.respond(200, "", etag=server_etag)
+            return
+
+        content = await self.render(request, entity)
+        content_type = await self.get_content_type(request, entity)
+
+        await request.respond(200, content, content_type=content_type, etag=server_etag)
+
+    async def process(self, request):
+        return None
+
+    async def get_etag(self, request, entity):
+        return None
+
+    async def get_content_type(self, request, entity):
+        return None
+
+    async def render(self, request, entity):
+        return None
+
+class ResourceException(Exception):
+    pass
+
+class Redirect(ResourceException):
+    pass
+
+class BadRequestError(ResourceException):
+    pass
+
 class Request:
-    def __init__(self, scope, receive):
+    def __init__(self, scope, receive, send):
         self._scope = scope
         self._receive = receive
+        self._send = send
+        self._params = scope["brbn.path_params"]
 
-        self._params = {k: v for k, v in _urllib.parse.parse_qsl(scope["query_string"].decode("utf-8"))}
-        self._params.update(scope["brbn.path_params"])
+        query_string = scope["query_string"].decode("utf-8")
+
+        for name, value in _urllib.parse.parse_qsl(query_string):
+            self._params[name] = value
 
     @property
     def method(self):
@@ -149,7 +209,7 @@ class Request:
             if header_name.lower() == name:
                 return header_value.decode("utf-8")
 
-    async def body(self):
+    async def get_content(self) -> bytes:
         message = await self._receive()
         type = message["type"]
 
@@ -162,180 +222,67 @@ class Request:
         else:
             assert False
 
-    async def json(self):
-        return _json.loads(self.body())
+    async def parse_json(self) -> object:
+        return _json.loads(self.get_content())
 
-class Response:
-    def __init__(self, body, status_code=200):
-        self.body = body
-        self.status_code = status_code
-        self.headers = dict()
+    async def respond(self, code, content, content_type=None, etag=None):
+        assert isinstance(code, int), type(code)
+        assert isinstance(content, bytes), type(content)
+        assert content_type is None or isinstance(content_type, str), type(content_type)
+        assert etag is None or isinstance(etag, str), type(etag)
 
-    def set_header(self, name, value):
-        self.headers[name.lower()] = value
+        headers = list()
 
-    async def __call__(self, scope, receive, send):
+        if content_type is not None:
+            headers.append((b"content-type", content_type.encode("utf-8")))
+
+        if etag is not None:
+            headers.append((b"etag", etag.encode("utf-8")))
+
         start_message = {
             "type": "http.response.start",
-            "status": self.status_code,
-            "headers": [(k.encode("utf-8"), v.encode("utf-8")) for k, v in self.headers.items()],
+            "status": code,
+            "headers": headers,
         }
 
         body_message = {
             "type": "http.response.body",
-            "body": self.body.encode("utf-8"),
+            "body": content,
             "more_body": False,
         }
 
-        await send(start_message)
-        await send(body_message)
+        await self._send(start_message)
+        await self._send(body_message)
 
-class Endpoint:
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        request = Request(scope, receive)
-        response = await self.respond(request)
-
-        await response(scope, receive, send)
-
-    async def respond(self, request):
-        entity = await self.process(request)
-        server_etag = await self.etag(request, entity)
-
-        if server_etag is not None:
-            server_etag = f'"{server_etag}"'
-            client_etag = request.get_header("if-none-match")
-
-            if client_etag == server_etag:
-                return NotModifiedResponse()
-
-        if request.method == "HEAD":
-            response = Response("")
-        else:
-            response = await self.render(request, entity)
-            assert response is not None
-
-        if server_etag is not None:
-            response.set_header("etag", server_etag)
-
-        return response
+class FileResource(Resource):
+    async def receive_request(self, request):
+        try:
+            await super().receive_request(request)
+        except FileNotFoundError:
+            await request.respond(404, b"Not found")
 
     async def process(self, request):
-        return None
+        return _os.path.join(self.app.static_dir, request.get("subpath")[1:]) # XXX This won't work with an exact match
 
-    async def etag(self, request, entity):
-        return None
+    async def get_etag(self, request, fs_path):
+        return _os.path.getmtime(fs_path)
 
-    async def render(self, request, entity):
-        return OkResponse()
-
-class _EndpointException(Exception):
-    def __init__(self, message, response):
-        super().__init__(message)
-        self.response = response
-
-class Redirect(_EndpointException):
-    def __init__(self, url):
-        super().__init__(url, RedirectResponse(url))
-
-class BadRequestError(_EndpointException):
-    def __init__(self, message):
-        super().__init__(message, BadRequestResponse(message))
-
-class NotFoundError(_EndpointException):
-    def __init__(self, message):
-        super().__init__(message, NotFoundResponse(message))
-
-class PlainTextResponse(Response):
-    def __init__(self, body, status_code=200):
-        super().__init__(body, status_code=status_code)
-        self.set_header("content-type", "text/plain")
-
-class HtmlResponse(Response):
-    pass
-
-class FileResponse(Response):
-    def __init__(self, fs_path):
-        with open(fs_path) as file:
-            super().__init__(file.read())
-
-        if fs_path.endswith(".js"):
-            self.set_header("content-type", "application/javascript")
-
-class OkResponse(Response):
-    def __init__(self):
-        super().__init__("OK\n")
-
-class BadRequestResponse(PlainTextResponse):
-    def __init__(self, exception):
-        super().__init__(f"Bad request: {exception}\n", 400)
-
-class NotFoundResponse(PlainTextResponse):
-    def __init__(self):
-        super().__init__(f"Not found\n", 404)
-
-class NotModifiedResponse(Response):
-    def __init__(self):
-        super().__init__("", 304)
-
-class ServerErrorResponse(PlainTextResponse):
-    def __init__(self, exception):
-        super().__init__(f"Internal server error: {exception}\n", 500)
-        _traceback.print_exc()
-
-class JsonResponse(Response):
-    def __init__(self, data):
-        super().__init__(_json.dumps(data))
-        self.set_header("content-type", "application/json")
-
-class BadJsonResponse(PlainTextResponse):
-    def __init__(self, exception):
-        super().__init__(f"Bad request: Failure decoding JSON: {exception}\n", 400)
-
-# class CompressedJsonResponse(Response):
-#     def __init__(self, content):
-#         super().__init__(content, headers={"Content-Encoding": "gzip"}, media_type="application/json")
-
-_directory_index_template = """
-<html>
-  <head>
-    <title>{title}</title>
-    <link rel="icon" href="data:,">
-  </head>
-  <body><pre>{lines}</pre></body>
-</html>
-""".strip()
-
-class DirectoryIndexResponse(HtmlResponse):
-    def __init__(self, base_dir, file_path):
-        super().__init__(self.make_index(base_dir, file_path))
-
-    def make_index(self, base_dir, request_path):
-        assert not request_path.startswith("/")
-
-        if request_path != "/" and request_path.endswith("/"):
-            request_path = request_path[:-1]
-
-        fs_path = _os.path.join(base_dir, request_path)
-
-        assert _os.path.isdir(fs_path), fs_path
-
-        names = _os.listdir(fs_path)
-        lines = list()
-
-        if request_path == "":
-            lines.append("..")
-
-            for name in names:
-                lines.append(f"<a href=\"/{name}\">{name}</a>")
+    async def get_content_type(self, request, fs_path):
+        if fs_path.endswith(".css"):
+            return "text/css;charset=UTF-8"
+        elif fs_path.endswith(".html"):
+            return "text/html;charset=UTF-8"
+        elif fs_path.endswith(".js"):
+            return "text/javascript;charset=UTF-8"
+        elif fs_path.endswith(".jpeg"):
+            return "image/jpeg"
+        elif fs_path.endswith(".png"):
+            return "image/png"
+        elif fs_path.endswith(".svg"):
+            return "image/svg+xml"
         else:
-            lines.append(f"<a href=\"/{request_path}/..\">..</a>")
+            return "text/plain;charset=UTF-8"
 
-            for name in names:
-                lines.append(f"<a href=\"/{request_path}/{name}\">{name}</a>")
-
-        html = _directory_index_template.format(title=request_path, lines="\n".join(lines))
-
-        return html
+    async def render(self, request, fs_path):
+        with open(fs_path, "rb") as file:
+            return file.read()

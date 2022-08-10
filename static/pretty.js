@@ -47,7 +47,7 @@ export class Page extends gesso.Page {
                 return response.text()
             })
             .then(text => {
-                if (contentType.indexOf("application/json") === 0) {
+                if (contentType.indexOf("text/json") === 0 || contentType.indexOf("application/json") === 0) {
                     const json = JSON.parse(text);
 
                     text = JSON.stringify(json, null, 4);
