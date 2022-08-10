@@ -65,10 +65,10 @@ class BlinkyCommand:
 
         self.server = _brbn.Server(self, host="", port=8080)
 
-        main = MainResource(self)
+        main = _brbn.FileResource(self, self.static_dir, subpath="/main.html")
         data = DataResource(self)
         proxy = ProxyResource(self)
-        files = _brbn.FileResource(self)
+        files = _brbn.FileResource(self, self.static_dir)
 
         self.server.add_route("/", main)
         self.server.add_route("/api/data", data)
@@ -96,12 +96,6 @@ class BlinkyCommand:
             elapsed = _time.time() - start
 
             await _asyncio.sleep(max(0, 30 * 60 - elapsed))
-
-# XXX Use FileResource here once I make it work
-class MainResource(_brbn.Resource):
-    async def render(self, request, entity):
-        with open(_os.path.join(self.app.static_dir, "main.html"), "rb") as file:
-            return file.read()
 
 class DataResource(_brbn.Resource):
     async def process(self, request):

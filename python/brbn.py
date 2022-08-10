@@ -250,14 +250,27 @@ class Request:
         await self._send(body_message)
 
 class FileResource(Resource):
-    async def receive_request(self, request):
+    def __init__(self, app, static_dir, subpath=None):
+        assert subpath is None or subpath.startswith("/"), subpath
+
+        super().__init__(app)
+
+        self.static_dir = static_dir
+        self.subpath = subpath
+
+    async def handle(self, request):
         try:
-            await super().receive_request(request)
+            await super().handle(request)
         except FileNotFoundError:
             await request.respond(404, b"Not found")
 
     async def process(self, request):
-        return _os.path.join(self.app.static_dir, request.get("subpath")[1:]) # XXX This won't work with an exact match
+        subpath = self.subpath
+
+        if subpath is None:
+            subpath = request.get("subpath")
+
+        return _os.path.join(self.static_dir, subpath[1:]) # XXX This won't work with an exact match
 
     async def get_etag(self, request, fs_path):
         return _os.path.getmtime(fs_path)
