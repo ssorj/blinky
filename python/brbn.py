@@ -73,18 +73,7 @@ class Server:
 
             if match is not None:
                 scope["brbn.path_params"] = match.groupdict()
-
-                try:
-                    await route.resource(scope, receive, send)
-                # except ResourceException as e:
-                #     # XXX Move this into resource
-                #     await Request(scope, receive, send).respond(500, _traceback.format_exc())
-                except Exception as e:
-                    _log.exception(e)
-                    # XXX Move this into resource
-                    trace = _traceback.format_exc()
-                    await Request(scope, receive, send).respond(500, trace.encode("utf-8"))
-
+                await route.resource(scope, receive, send)
                 return
 
         await Request(scope, receive, send).respond(404, b"Not found")
@@ -123,16 +112,16 @@ class Resource:
 
     async def __call__(self, scope, receive, send):
         request = Request(scope, receive, send)
-        await self.receive_request(request)
 
-    async def receive_request(self, request):
+        try:
+            await self.handle(request)
+        except Exception as e:
+            _log.exception(e)
+            trace = _traceback.format_exc()
+            await respond.respond(500, trace.encode("utf-8"))
+
+    async def handle(self, request):
         entity = await self.process(request)
-        await self.send_response(request, entity)
-
-    async def send_response(self, request, entity):
-        # XXX Need to determine if any of the logic below belongs in
-        # receive_request
-
         server_etag = await self.get_etag(request, entity)
 
         if server_etag is not None:
