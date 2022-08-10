@@ -18,13 +18,14 @@
 #
 
 import asyncio as _asyncio
+import hypercorn as _hypercorn
+import hypercorn.asyncio as _hypercorn_asyncio
 import json as _json
 import logging as _logging
 import os as _os
 import re as _re
 import traceback as _traceback
 import urllib as _urllib
-import uvicorn as _uvicorn
 
 _log = _logging.getLogger("brbn")
 
@@ -53,7 +54,12 @@ class Server:
         self._routes.append(_Route(path, resource))
 
     def run(self):
-        _uvicorn.run(self, host=self.host, port=self.port, lifespan="on")
+        config = _hypercorn.Config()
+        config.bind = [f"{self.host}:{self.port}"]
+        config.certfile = "/home/jross/code/certifiable/build/server-cert.pem"
+        config.keyfile = "/home/jross/code/certifiable/build/server-key.pem"
+
+        _asyncio.run(_hypercorn_asyncio.serve(self, config))
 
     async def __call__(self, scope, receive, send):
         type = scope["type"]
@@ -118,7 +124,7 @@ class Resource:
         except Exception as e:
             _log.exception(e)
             trace = _traceback.format_exc()
-            await respond.respond(500, trace.encode("utf-8"))
+            await request.respond(500, trace.encode("utf-8"))
 
     async def handle(self, request):
         entity = await self.process(request)
@@ -133,7 +139,7 @@ class Resource:
                 return
 
         if request.method == "HEAD":
-            await request.respond(200, "", etag=server_etag)
+            await request.respond(200, b"", etag=server_etag)
             return
 
         content = await self.render(request, entity)
