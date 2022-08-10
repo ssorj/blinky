@@ -251,8 +251,6 @@ class Request:
 
 class FileResource(Resource):
     def __init__(self, app, static_dir, subpath=None):
-        assert subpath is None or subpath.startswith("/"), subpath
-
         super().__init__(app)
 
         self.static_dir = static_dir
@@ -265,12 +263,12 @@ class FileResource(Resource):
             await request.respond(404, b"Not found")
 
     async def process(self, request):
-        subpath = self.subpath
+        subpath = request.get("subpath", self.subpath)
 
-        if subpath is None:
-            subpath = request.get("subpath")
+        assert subpath is not None
+        assert subpath.startswith("/"), subpath
 
-        return _os.path.join(self.static_dir, subpath[1:]) # XXX This won't work with an exact match
+        return _os.path.join(self.static_dir, subpath[1:])
 
     async def get_etag(self, request, fs_path):
         return _os.path.getmtime(fs_path)
