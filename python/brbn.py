@@ -211,7 +211,7 @@ class Request:
             if header_name.lower() == name:
                 return header_value.decode("utf-8")
 
-    async def get_content(self) -> bytes:
+    async def get_body(self) -> bytes:
         message = await self._receive()
         type = message["type"]
 
@@ -225,7 +225,7 @@ class Request:
             assert False
 
     async def parse_json(self) -> object:
-        return _json.loads(self.get_content())
+        return _json.loads(self.get_body())
 
     async def respond(self, code, content, content_type=None, etag=None):
         assert isinstance(code, int), type(code)

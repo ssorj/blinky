@@ -59,13 +59,12 @@ class BlinkyCommand:
 
     def init(self):
         args = self.parser.parse_args()
+        csp = "default-src 'self' *.googleapis.com *.gstatic.com"
 
         self.model = Model()
-        self.model.load(args.config)
-
-        csp = "default-src 'self' *.cloudflare.com *.googleapis.com *.gstatic.com"
-
         self.server = _brbn.Server(self, host="", port=8080, csp=csp)
+
+        self.model.load(args.config)
 
         main = _brbn.FileResource(self, self.static_dir, subpath="/main.html")
         data = DataResource(self)
