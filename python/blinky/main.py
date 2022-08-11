@@ -63,7 +63,9 @@ class BlinkyCommand:
         self.model = Model()
         self.model.load(args.config)
 
-        self.server = _brbn.Server(self, host="", port=8080)
+        csp = "default-src 'self' *.cloudflare.com *.googleapis.com *.gstatic.com"
+
+        self.server = _brbn.Server(self, host="", port=8080, csp=csp)
 
         main = _brbn.FileResource(self, self.static_dir, subpath="/main.html")
         data = DataResource(self)
@@ -102,13 +104,13 @@ class DataResource(_brbn.Resource):
         return self.app.model
 
     async def get_etag(self, request, model):
-        return model.update_time
+        return model.json_digest
 
     async def get_content_type(self, request, model):
         return "text/json"
 
     async def render(self, request, model):
-        return _json.dumps(model.data()).encode("utf-8")
+        return model.json
 
 class ProxyResource(_brbn.Resource):
     async def process(self, request):

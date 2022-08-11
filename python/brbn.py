@@ -18,8 +18,6 @@
 #
 
 import asyncio as _asyncio
-import hypercorn as _hypercorn
-import hypercorn.asyncio as _hypercorn_asyncio
 import json as _json
 import logging as _logging
 import os as _os
@@ -30,10 +28,11 @@ import urllib as _urllib
 _log = _logging.getLogger("brbn")
 
 class Server:
-    def __init__(self, app, host="", port=8080):
+    def __init__(self, app, host="", port=8080, csp="default-src 'self'"):
         self.app = app
         self.host = host
         self.port = port
+        self.csp = csp
 
         self._startup_coros = list()
         self._shutdown_coros = list()
@@ -54,12 +53,19 @@ class Server:
         self._routes.append(_Route(path, resource))
 
     def run(self):
-        config = _hypercorn.Config()
-        config.bind = [f"{self.host}:{self.port}"]
-        config.certfile = "/home/jross/code/certifiable/build/server-cert.pem"
-        config.keyfile = "/home/jross/code/certifiable/build/server-key.pem"
+        import uvicorn
 
-        _asyncio.run(_hypercorn_asyncio.serve(self, config))
+        uvicorn.run(self, host=self.host, port=self.port, log_level="error")
+
+        # from hypercorn import Config
+        # from hypercorn.asyncio import serve
+
+        # config = Config()
+        # config.bind = [f"{self.host}:{self.port}"]
+        # # config.certfile = "/home/jross/code/certifiable/build/server-cert.pem"
+        # # config.keyfile = "/home/jross/code/certifiable/build/server-key.pem"
+
+        # _asyncio.run(serve(self, config))
 
     async def __call__(self, scope, receive, send):
         type = scope["type"]
@@ -79,10 +85,10 @@ class Server:
 
             if match is not None:
                 scope["brbn.path_params"] = match.groupdict()
-                await route.resource(scope, receive, send)
+                await route.resource(self, scope, receive, send)
                 return
 
-        await Request(scope, receive, send).respond(404, b"Not found")
+        await Request(self, scope, receive, send).respond(404, b"Not found")
 
     async def _handle_lifespan_event(self, scope, receive, send):
         message = await receive()
@@ -116,8 +122,8 @@ class Resource:
     def __init__(self, app):
         self.app = app
 
-    async def __call__(self, scope, receive, send):
-        request = Request(scope, receive, send)
+    async def __call__(self, server, scope, receive, send):
+        request = Request(server, scope, receive, send)
 
         try:
             await self.handle(request)
@@ -169,7 +175,8 @@ class BadRequestError(ResourceException):
     pass
 
 class Request:
-    def __init__(self, scope, receive, send):
+    def __init__(self, server, scope, receive, send):
+        self._server = server
         self._scope = scope
         self._receive = receive
         self._send = send
@@ -226,7 +233,11 @@ class Request:
         assert content_type is None or isinstance(content_type, str), type(content_type)
         assert etag is None or isinstance(etag, str), type(etag)
 
-        headers = list()
+        headers = [
+            (b"content-security-policy", self._server.csp.encode("utf-8")),
+            (b"referrer-policy", b"no-referrer"),
+            (b"x-content-type-options", b"nosniff"),
+        ]
 
         if content_type is not None:
             headers.append((b"content-type", content_type.encode("utf-8")))
@@ -249,9 +260,25 @@ class Request:
         await self._send(start_message)
         await self._send(body_message)
 
+_content_types_by_extension = {
+    ".css": "text/css;charset=UTF-8",
+    ".html": "text/html;charset=UTF-8",
+    ".jpeg": "image/jpeg",
+    ".jpg": "image/jpeg",
+    ".js": "text/javascript;charset=UTF-8",
+    ".json": "application/json",
+    ".pdf": "application/pdf",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".txt": "text/plain;charset=UTF-8",
+    ".woff": "application/font-woff",
+}
+
 class FileResource(Resource):
     def __init__(self, app, static_dir, subpath=None):
         super().__init__(app)
+
+        assert _os.path.isdir(static_dir), static_dir
 
         self.static_dir = static_dir
         self.subpath = subpath
@@ -274,20 +301,8 @@ class FileResource(Resource):
         return _os.path.getmtime(fs_path)
 
     async def get_content_type(self, request, fs_path):
-        if fs_path.endswith(".css"):
-            return "text/css;charset=UTF-8"
-        elif fs_path.endswith(".html"):
-            return "text/html;charset=UTF-8"
-        elif fs_path.endswith(".js"):
-            return "text/javascript;charset=UTF-8"
-        elif fs_path.endswith(".jpeg"):
-            return "image/jpeg"
-        elif fs_path.endswith(".png"):
-            return "image/png"
-        elif fs_path.endswith(".svg"):
-            return "image/svg+xml"
-        else:
-            return "text/plain;charset=UTF-8"
+        _, ext = _os.path.splitext(fs_path)
+        return _content_types_by_extension.get(ext, "text/plain;charset=UTF-8")
 
     async def render(self, request, fs_path):
         with open(fs_path, "rb") as file:
