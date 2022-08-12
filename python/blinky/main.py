@@ -54,17 +54,34 @@ class BlinkyCommand:
         user_dir = _os.path.expanduser("~")
         default_config_file = _os.path.join(user_dir, ".config", "blinky", "config.py")
 
+        self.parser.add_argument("--host", metavar="HOST", default="localhost",
+                                 help="Listen for connections on HOST (default localhost)")
+        self.parser.add_argument("--port", metavar="PORT", default=8080, type=int,
+                                 help="Listen for connections on PORT (default 8080)")
         self.parser.add_argument("--config", default=default_config_file, metavar="FILE",
                                  help="Load configuration from FILE")
+        self.parser.add_argument("--quiet", action="store_true",
+                                 help="Print no logging to the console")
+        self.parser.add_argument("--verbose", action="store_true",
+                                 help="Print detailed logging to the console")
+        self.parser.add_argument("--init-only", action="store_true",
+                                 help=_argparse.SUPPRESS)
 
     def init(self):
-        args = self.parser.parse_args()
-        csp = "default-src 'self' *.googleapis.com *.gstatic.com"
+        self.args = self.parser.parse_args()
+
+        if not self.args.quiet:
+            _logging.getLogger("blinky").setLevel(_logging.INFO)
+            _logging.getLogger("brbn").setLevel(_logging.INFO)
+        elif self.args.verbose:
+            _logging.getLogger("blinky").setLevel(_logging.DEBUG)
+            _logging.getLogger("brbn").setLevel(_logging.DEBUG)
 
         self.model = Model()
-        self.server = _brbn.Server(self, host="", port=8080, csp=csp)
+        self.server = _brbn.Server(self, host=self.args.host, port=self.args.port,
+                                   csp="default-src 'self' *.googleapis.com *.gstatic.com")
 
-        self.model.load(args.config)
+        self.model.load(self.args.config)
 
         main = _brbn.FileResource(self, self.static_dir, subpath="/main.html")
         data = DataResource(self)
@@ -81,11 +98,13 @@ class BlinkyCommand:
 
     def main(self):
         _logging.basicConfig(level=_logging.ERROR)
-        _logging.getLogger("blinky").setLevel(_logging.INFO)
-        _logging.getLogger("brbn").setLevel(_logging.INFO)
 
         try:
             self.init()
+
+            if self.args.init_only:
+                return
+
             self.server.run()
         except KeyboardInterrupt:
             pass
