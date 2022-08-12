@@ -80,7 +80,7 @@ class Model:
         return data
 
     async def update(self):
-        _log.info("Updating jobs".format(self))
+        _log.info("Updating jobs")
 
         await _asyncio.gather(*[x.update() for x in self.agents if x._enabled])
 
@@ -268,10 +268,14 @@ class HttpAgent(Agent):
 
         async with _httpx.AsyncClient(headers=headers, verify=False) as client:
             start = _time.time()
-            await _asyncio.gather(*[x.update(client) for x in self.jobs])
-            elapsed = _time.time() - start
 
-            _log.info("{} updated {} jobs in {:.2f}s".format(self, len(self.jobs), elapsed))
+            await _asyncio.gather(*[x.update(client) for x in self.jobs])
+
+            elapsed = _time.time() - start
+            count = len(self.jobs)
+            noun = plural('job', count)
+
+            _log.info(f"{self} updated {count} {noun} in {elapsed:.2f}s")
 
 class HttpJob(Job):
     async def fetch_data(self, client):
@@ -320,4 +324,16 @@ def format_repr(obj, *args):
     cls = obj.__class__.__name__
     strings = [str(x) for x in args]
 
-    return "{}({})".format(cls, ",".join(strings))
+    return "{}({})".format(cls, ", ".join(strings))
+
+def plural(noun, count=0, plural=None):
+    if count == 1:
+        return noun
+
+    if plural is None:
+        if noun.endswith("s"):
+            plural = "{}ses".format(noun)
+        else:
+            plural = "{}s".format(noun)
+
+    return plural

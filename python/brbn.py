@@ -39,6 +39,9 @@ class Server:
         self._shutdown_coros = list()
         self._routes = list()
 
+    def __repr__(self):
+        return _format_repr(self, self.app, self.host, self.port)
+
     def add_startup_task(self, coro):
         self._startup_coros.append(coro)
 
@@ -46,12 +49,13 @@ class Server:
         self._shutdown_coros.append(coro)
 
     def add_route(self, path, resource):
-        _log.info(f"Adding route: {path} -> {resource}")
-
         assert path.startswith("/"), path
         assert path == "/" or not path.endswith("/"), path
 
-        self._routes.append(_Route(path, resource))
+        route = _Route(path, resource)
+        self._routes.append(route)
+
+        _log.info(f"Route: {route}")
 
     def run(self):
         import uvicorn
@@ -109,10 +113,16 @@ class _Route:
 
         self.regex = _re.compile(regex)
 
+    def __repr__(self):
+        return f"{self.path} -> {self.resource}"
+
 class Resource:
     def __init__(self, app, methods=("GET", "HEAD", "POST")):
         self.app = app
         self.methods = methods
+
+    def __repr__(self):
+        return _format_repr(self)
 
     async def __call__(self, server, scope, receive, send):
         request = Request(server, scope, receive, send)
@@ -176,6 +186,9 @@ class Request:
 
         for name, value in _urllib.parse.parse_qsl(query_string):
             self._params[name] = value
+
+    def __repr__(self):
+        return _format_repr(self, self.method, self.path)
 
     @property
     def method(self):
@@ -298,3 +311,9 @@ class FileResource(Resource):
     async def render(self, request, fs_path):
         with open(fs_path, "r") as file:
             return file.read()
+
+def _format_repr(obj, *args):
+    cls = obj.__class__.__name__
+    strings = [str(x) for x in args]
+
+    return "{}({})".format(cls, ", ".join(strings))
