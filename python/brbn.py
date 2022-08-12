@@ -147,8 +147,8 @@ class Resource:
         content = await self.render(request, entity)
         content_type = await self.get_content_type(request, entity)
 
-        assert isinstance(content, str)
-        assert isinstance(content_type, str)
+        assert isinstance(content, str), type(content)
+        assert isinstance(content_type, str), type(content_type)
 
         await request.respond(200, content.encode("utf-8"), content_type=content_type, etag=server_etag)
 
