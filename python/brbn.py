@@ -22,6 +22,7 @@ import json as _json
 import logging as _logging
 import os as _os
 import re as _re
+import struct as _struct
 import traceback as _traceback
 import urllib as _urllib
 
@@ -56,16 +57,6 @@ class Server:
         import uvicorn
 
         uvicorn.run(self, host=self.host, port=self.port, log_level="error")
-
-        # from hypercorn import Config
-        # from hypercorn.asyncio import serve
-
-        # config = Config()
-        # config.bind = [f"{self.host}:{self.port}"]
-        # # config.certfile = "/home/jross/code/certifiable/build/server-cert.pem"
-        # # config.keyfile = "/home/jross/code/certifiable/build/server-key.pem"
-
-        # _asyncio.run(serve(self, config))
 
     async def __call__(self, scope, receive, send):
         type = scope["type"]
@@ -119,8 +110,9 @@ class _Route:
         self.regex = _re.compile(regex)
 
 class Resource:
-    def __init__(self, app):
+    def __init__(self, app, methods=("GET", "HEAD", "POST")):
         self.app = app
+        self.methods = methods
 
     async def __call__(self, server, scope, receive, send):
         request = Request(server, scope, receive, send)
@@ -133,6 +125,10 @@ class Resource:
             await request.respond(500, trace.encode("utf-8"))
 
     async def handle(self, request):
+        if request.method not in self.methods:
+            await request.respond(400, b"Bad request: Illegal method")
+            return
+
         entity = await self.process(request)
         server_etag = await self.get_etag(request, entity)
 
@@ -151,7 +147,10 @@ class Resource:
         content = await self.render(request, entity)
         content_type = await self.get_content_type(request, entity)
 
-        await request.respond(200, content, content_type=content_type, etag=server_etag)
+        assert isinstance(content, str)
+        assert isinstance(content_type, str)
+
+        await request.respond(200, content.encode("utf-8"), content_type=content_type, etag=server_etag)
 
     async def process(self, request):
         return None
@@ -276,7 +275,7 @@ _content_types_by_extension = {
 
 class FileResource(Resource):
     def __init__(self, app, static_dir, subpath=None):
-        super().__init__(app)
+        super().__init__(app, methods=("GET", "HEAD"))
 
         assert _os.path.isdir(static_dir), static_dir
 
@@ -298,12 +297,13 @@ class FileResource(Resource):
         return _os.path.join(self.static_dir, subpath[1:])
 
     async def get_etag(self, request, fs_path):
-        return _os.path.getmtime(fs_path)
+        mtime = _os.path.getmtime(fs_path)
+        return _struct.pack("f", mtime).hex()
 
     async def get_content_type(self, request, fs_path):
         _, ext = _os.path.splitext(fs_path)
         return _content_types_by_extension.get(ext, "text/plain;charset=UTF-8")
 
     async def render(self, request, fs_path):
-        with open(fs_path, "rb") as file:
+        with open(fs_path, "r") as file:
             return file.read()

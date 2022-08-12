@@ -141,4 +141,4 @@ class ProxyResource(_brbn.Resource):
         return proxied_response.headers["content-type"]
 
     async def render(self, request, proxied_response):
-        return proxied_response.text.encode("utf-8")
+        return proxied_response.text

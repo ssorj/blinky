@@ -90,8 +90,8 @@ class Model:
         prev_json = self.json or ""
         prev_digest = self.json_digest or "-"
 
-        self.json = _json.dumps(data, sort_keys=True).encode("utf-8")
-        self.json_digest = _hashlib.sha1(self.json).hexdigest()
+        self.json = _json.dumps(data, sort_keys=True)
+        self.json_digest = _hashlib.sha1(self.json.encode("utf-8")).hexdigest()
 
         _log.debug("Prev json: {} {}".format(prev_digest, len(prev_json)))
         _log.debug("Curr json: {} {}".format(self.json_digest, len(self.json)))
