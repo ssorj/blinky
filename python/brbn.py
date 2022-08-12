@@ -164,15 +164,6 @@ class Resource:
     async def render(self, request, entity):
         return None
 
-class ResourceException(Exception):
-    pass
-
-class Redirect(ResourceException):
-    pass
-
-class BadRequestError(ResourceException):
-    pass
-
 class Request:
     def __init__(self, server, scope, receive, send):
         self._server = server
@@ -210,7 +201,7 @@ class Request:
             if header_name.lower() == name:
                 return header_value.decode("utf-8")
 
-    async def get_body(self) -> bytes:
+    async def get_body(self):
         message = await self._receive()
         type = message["type"]
 
