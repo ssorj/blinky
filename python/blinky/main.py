@@ -43,43 +43,26 @@ Blinky looks for its configuration in the following locations:
   3. /etc/blinky/config.py
 """
 
-class BlinkyCommand:
+class BlinkyCommand(_brbn.BrbnCommand):
     def __init__(self, home):
+        super().__init__(server=_brbn.Server(self))
+
         self.home = home
         self.static_dir = _os.path.join(self.home, "static")
 
-        self.parser = _argparse.ArgumentParser(description=_description, epilog=_epilog,
-                                               formatter_class=_argparse.RawDescriptionHelpFormatter)
+        self.parser.description = _description
+        self.parser.epilog = _epilog
 
         user_dir = _os.path.expanduser("~")
         default_config_file = _os.path.join(user_dir, ".config", "blinky", "config.py")
 
-        self.parser.add_argument("--host", metavar="HOST", default="localhost",
-                                 help="Listen for connections on HOST (default localhost)")
-        self.parser.add_argument("--port", metavar="PORT", default=8080, type=int,
-                                 help="Listen for connections on PORT (default 8080)")
         self.parser.add_argument("--config", default=default_config_file, metavar="FILE",
                                  help="Load configuration from FILE")
-        self.parser.add_argument("--quiet", action="store_true",
-                                 help="Print no logging to the console")
-        self.parser.add_argument("--verbose", action="store_true",
-                                 help="Print detailed logging to the console")
-        self.parser.add_argument("--init-only", action="store_true",
-                                 help=_argparse.SUPPRESS)
 
     def init(self):
-        self.args = self.parser.parse_args()
-
-        if not self.args.quiet:
-            _logging.getLogger("blinky").setLevel(_logging.INFO)
-            _logging.getLogger("brbn").setLevel(_logging.INFO)
-        elif self.args.verbose:
-            _logging.getLogger("blinky").setLevel(_logging.DEBUG)
-            _logging.getLogger("brbn").setLevel(_logging.DEBUG)
+        super().init()
 
         self.model = Model()
-        self.server = _brbn.Server(self, host=self.args.host, port=self.args.port)
-
         self.model.load(self.args.config)
 
         main = _brbn.FileResource(self, self.static_dir, subpath="/main.html")
@@ -95,19 +78,6 @@ class BlinkyCommand:
 
         self.server.add_startup_task(self.update())
         self.server.csp = "default-src 'self' *.googleapis.com *.gstatic.com"
-
-    def main(self):
-        _logging.basicConfig(level=_logging.ERROR)
-
-        try:
-            self.init()
-
-            if self.args.init_only:
-                return
-
-            self.server.run()
-        except KeyboardInterrupt:
-            pass
 
     async def update(self):
         while True:
