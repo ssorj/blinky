@@ -349,7 +349,7 @@ def find(dirs=None, include="*", exclude=()):
     found = set()
 
     for dir in dirs:
-        for root, dir_names, file_names in _os.walk(dir):
+        for root, dir_names, file_names in _os.walk(dir, followlinks=True):
             names = dir_names + file_names
 
             for include_pattern in include:
