@@ -78,11 +78,11 @@ _clean_arg = CommandArgument("clean_", help="Clean before starting", display_nam
 _verbose_arg = CommandArgument("verbose", help="Print detailed logging to the console")
 
 @command(args=(_prefix_arg, _clean_arg))
-def build(app, prefix=None, clean_=False):
+def build(prefix=None, clean_=False):
     check_project()
 
     if clean_:
-        clean(app)
+        clean()
 
     build_file = join(project.build_dir, "build.json")
     build_data = {}
@@ -134,14 +134,14 @@ def build(app, prefix=None, clean_=False):
                CommandArgument("unskip", help="Run skipped tests matching PATTERN", metavar="PATTERN"),
                CommandArgument("list_", help="Print the test names and exit", display_name="list"),
                _verbose_arg, _clean_arg))
-def test_(app, include="*", exclude=None, unskip=None, list_=False, verbose=False, clean_=False):
+def test_(include="*", exclude=None, unskip=None, list_=False, verbose=False, clean_=False):
     check_project()
 
     if clean_:
-        clean(app)
+        clean()
 
     if not list_:
-        build(app)
+        build()
 
     with project_env():
         modules = [_importlib.import_module(x) for x in project.test_modules]
@@ -163,10 +163,10 @@ def test_(app, include="*", exclude=None, unskip=None, list_=False, verbose=Fals
 
 @command(args=(CommandArgument("staging_dir", help="A path prepended to installed files"),
                _prefix_arg, _clean_arg))
-def install(app, staging_dir="", prefix=None, clean_=False):
+def install(staging_dir="", prefix=None, clean_=False):
     check_project()
 
-    build(app, prefix=prefix, clean_=clean_)
+    build(prefix=prefix, clean_=clean_)
 
     assert is_dir(project.build_dir), list_dir()
 
@@ -185,7 +185,7 @@ def install(app, staging_dir="", prefix=None, clean_=False):
         copy(path, join(install_prefix, "lib", remove_prefix(path, build_prefix)), inside=False, symlinks=False)
 
 @command
-def clean(app):
+def clean():
     check_project()
 
     remove(project.build_dir)
@@ -193,7 +193,7 @@ def clean(app):
     remove(find(".", "*.pyc"))
 
 @command(args=(CommandArgument("undo", help="Generate settings that restore the previous environment"),))
-def env(app, undo=False):
+def env(undo=False):
     """
     Generate shell settings for the project environment
 
@@ -239,7 +239,7 @@ def env(app, undo=False):
 
 @command(args=(CommandArgument("filename", help="Which file to generate"),
                CommandArgument("stdout", help="Print to stdout instead of writing the file directly")))
-def generate(app, filename, stdout=False):
+def generate(filename, stdout=False):
     """
     Generate standard project files
 
@@ -278,7 +278,7 @@ def _generate_file(project_files, filename, stdout):
         write(filename, content)
 
 # @command
-# def coverage(app):
+# def coverage():
 #     check_program("coverage3")
 
 #     with project_env():
