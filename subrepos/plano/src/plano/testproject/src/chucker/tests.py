@@ -24,6 +24,10 @@ def hello():
     print("Hello")
 
 @test
+async def hello_async():
+    print("Hello")
+
+@test
 def goodbye():
     print("Goodbye")
 

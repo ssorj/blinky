@@ -88,6 +88,8 @@ class PlanoTestCommand(BaseCommand):
                       test_timeout=self.timeout, fail_fast=self.fail_fast,
                       verbose=self.verbose, quiet=self.quiet)
 
+_plano_command = None
+
 class PlanoCommand(BaseCommand):
     def __init__(self, planofile=None):
         self.planofile = planofile
@@ -111,6 +113,9 @@ class PlanoCommand(BaseCommand):
         self.default_command_name = None
         self.default_command_args = None
         self.default_command_kwargs = None
+
+        global _plano_command
+        _plano_command = self
 
     def set_default_command(self, name, *args, **kwargs):
         self.default_command_name = name
@@ -155,7 +160,7 @@ class PlanoCommand(BaseCommand):
             return
 
         with Timer() as timer:
-            self.selected_command(self, *self.command_args, **self.command_kwargs)
+            self.selected_command(*self.command_args, **self.command_kwargs)
 
         cprint("OK", color="green", file=_sys.stderr, end="")
         cprint(" ({})".format(format_duration(timer.elapsed_time)), color="magenta", file=_sys.stderr)
@@ -186,7 +191,7 @@ class PlanoCommand(BaseCommand):
         _sys.path.insert(0, join(get_parent_dir(planofile), "python"))
 
         scope = dict(globals())
-        scope["app"] = self
+        scope["app"] = _plano_command
 
         try:
             with open(planofile) as f:
