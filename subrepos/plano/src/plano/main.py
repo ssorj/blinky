@@ -2029,9 +2029,9 @@ def command(_function=None, name=None, args=None, parent=None):
             return output_args
 
         def __call__(self, *args, **kwargs):
-            app = self.module._plano_command
+            from .commands import _plano_command, PlanoCommand
+            app = _plano_command
 
-            from .commands import PlanoCommand
             assert isinstance(app, PlanoCommand), app
 
             command = app.bound_commands[self.name]

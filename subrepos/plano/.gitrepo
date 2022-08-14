@@ -6,7 +6,7 @@
 [subrepo]
 	remote = git@github.com:ssorj/plano.git
 	branch = main
-	commit = 8e0485854099a6a906fa77b5bb2beb85faa6a85a
-	parent = 5335e8f47fd618bb615774540a374e6018bb5ad8
+	commit = 85d85c0d8c6f97986c6fdd3ee838fe16fbb8dccc
+	parent = bc78f66f27911acb52b29f8cac602361cb4620d7
 	method = merge
 	cmdver = 0.4.3
