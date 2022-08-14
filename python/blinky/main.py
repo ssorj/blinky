@@ -78,8 +78,7 @@ class BlinkyCommand:
             _logging.getLogger("brbn").setLevel(_logging.DEBUG)
 
         self.model = Model()
-        self.server = _brbn.Server(self, host=self.args.host, port=self.args.port,
-                                   csp="default-src 'self' *.googleapis.com *.gstatic.com")
+        self.server = _brbn.Server(self, host=self.args.host, port=self.args.port)
 
         self.model.load(self.args.config)
 
@@ -95,6 +94,7 @@ class BlinkyCommand:
         self.server.add_route("/*", files)
 
         self.server.add_startup_task(self.update())
+        self.server.csp = "default-src 'self' *.googleapis.com *.gstatic.com"
 
     def main(self):
         _logging.basicConfig(level=_logging.ERROR)
