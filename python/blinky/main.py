@@ -45,7 +45,7 @@ Blinky looks for its configuration in the following locations:
 
 class BlinkyCommand(_brbn.BrbnCommand):
     def __init__(self, home):
-        super().__init__(server=_brbn.Server(self))
+        super().__init__(server=_brbn.Server())
 
         self.home = home
         self.static_dir = _os.path.join(self.home, "static")
@@ -65,10 +65,10 @@ class BlinkyCommand(_brbn.BrbnCommand):
         self.model = Model()
         self.model.load(self.args.config)
 
-        main = _brbn.FileResource(self, self.static_dir, subpath="/main.html")
-        data = DataResource(self)
-        proxy = ProxyResource(self)
-        files = _brbn.FileResource(self, self.static_dir)
+        main = _brbn.FileResource(dir=self.static_dir, subpath="/main.html")
+        data = DataResource(app=self)
+        proxy = ProxyResource(app=self)
+        files = _brbn.FileResource(dir=self.static_dir)
 
         self.server.add_route("/", main)
         self.server.add_route("/api/data", data)
