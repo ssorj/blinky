@@ -17,20 +17,19 @@
 # under the License.
 #
 
-import asyncio as _asyncio
-import collections as _collections
-import datetime as _datetime
-import hashlib as _hashlib
-import httpx as _httpx
-import inspect as _inspect
-import json as _json
-import logging as _logging
-import os as _os
-import runpy as _runpy
-import sched as _sched
-import time as _time
+import asyncio
+import datetime
+import hashlib
+import httpx
+import inspect
+import json
+import logging
+import os
+import runpy
+import sys
+import time
 
-_log = _logging.getLogger("blinky.model")
+log = logging.getLogger("blinky.model")
 
 PASSED = "PASSED"
 FAILED = "FAILED"
@@ -51,16 +50,16 @@ class Model:
         return format_repr(self)
 
     def load(self, config_file):
-        if not _os.path.exists(config_file):
-            config_file = _os.path.join("/", "etc", "blinky", "config.py")
+        if not os.path.exists(config_file):
+            config_file = os.path.join("/", "etc", "blinky", "config.py")
 
-        if not _os.path.exists(config_file):
-            _sys.exit("Error! No configuration found")
+        if not os.path.exists(config_file):
+            sys.exit("Error! No configuration found")
 
-        _log.info("Loading model from {}".format(config_file))
+        log.info("Loading model from {}".format(config_file))
 
         init_globals = {"model": self}
-        config = _runpy.run_path(config_file, init_globals)
+        config = runpy.run_path(config_file, init_globals)
 
     def data(self):
         if self.update_time is None:
@@ -80,23 +79,23 @@ class Model:
         return data
 
     async def update(self):
-        _log.info("Updating jobs")
+        log.info("Updating jobs")
 
-        await _asyncio.gather(*[x.update() for x in self.agents if x._enabled])
+        await asyncio.gather(*[x.update() for x in self.agents if x._enabled])
 
-        self.update_time = _datetime.datetime.now(_datetime.timezone.utc)
+        self.update_time = datetime.datetime.now(datetime.timezone.utc)
 
         data = self.data()
         prev_json = self.json or ""
         prev_digest = self.json_digest or "-"
 
-        self.json = _json.dumps(data, sort_keys=True)
-        self.json_digest = _hashlib.sha1(self.json.encode("utf-8")).hexdigest()
+        self.json = json.dumps(data, sort_keys=True)
+        self.json_digest = hashlib.sha1(self.json.encode("utf-8")).hexdigest()
 
-        _log.debug("Prev json: {} {}".format(prev_digest, len(prev_json)))
-        _log.debug("Curr json: {} {}".format(self.json_digest, len(self.json)))
+        log.debug("Prev json: {} {}".format(prev_digest, len(prev_json)))
+        log.debug("Curr json: {} {}".format(self.json_digest, len(self.json)))
 
-        _log.info("Updated at {}".format(self.update_time))
+        log.info("Updated at {}".format(self.update_time))
 
 class ModelObject:
     _references = []
@@ -119,8 +118,8 @@ class ModelObject:
     def data(self, exclude=()):
         data = dict()
 
-        for key, value in _inspect.getmembers(self):
-            if key.startswith("_") or _inspect.isroutine(value) or key in exclude:
+        for key, value in inspect.getmembers(self):
+            if key.startswith("_") or inspect.isroutine(value) or key in exclude:
                 continue
 
             if key in self._references:
@@ -223,7 +222,7 @@ class Job(ModelObject):
         except:
             self.update_failures += 1
 
-            _log.exception("Failure converting {}".format(self))
+            log.exception("Failure converting {}".format(self))
 
             return
 
@@ -257,25 +256,25 @@ class JobRun:
         self.logs_url = None    # Log output
 
     def data(self):
-        return {k: v for k, v in _inspect.getmembers(self) if not k.startswith("_") and not _inspect.isroutine(v)}
+        return {k: v for k, v in inspect.getmembers(self) if not k.startswith("_") and not inspect.isroutine(v)}
 
 class HttpAgent(Agent):
     async def update(self, headers={}):
-        start = _time.time()
+        start = time.time()
 
         if self._token:
             headers["Authorization"] = f"token {self._token}"
 
-        async with _httpx.AsyncClient(headers=headers, verify=False) as client:
-            start = _time.time()
+        async with httpx.AsyncClient(headers=headers, verify=False) as client:
+            start = time.time()
 
-            await _asyncio.gather(*[x.update(client) for x in self.jobs])
+            await asyncio.gather(*[x.update(client) for x in self.jobs])
 
-            elapsed = _time.time() - start
+            elapsed = time.time() - start
             count = len(self.jobs)
             noun = plural('job', count)
 
-            _log.info(f"{self} updated {count} {noun} in {elapsed:.2f}s")
+            log.info(f"{self} updated {count} {noun} in {elapsed:.2f}s")
 
 class HttpJob(Job):
     async def fetch_data(self, client):
@@ -284,14 +283,14 @@ class HttpJob(Job):
         if self.fetch_url is not None:
             url = self.fetch_url
 
-        _log.debug("Fetching data from {}".format(url))
+        log.debug("Fetching data from {}".format(url))
 
         try:
             response = await client.get(url)
-        except _httpx.RequestError as e:
+        except httpx.RequestError as e:
             self.log_request_error(e, url, None)
         except Exception as e:
-            _log.warn("{}: {}: {}".format(e.__class__.__name__, e, url))
+            log.warn("{}: {}: {}".format(e.__class__.__name__, e, url))
         else:
             if response.status_code != 200:
                 self.log_request_error(response.status_code, url, response)
@@ -300,23 +299,23 @@ class HttpJob(Job):
             return response.json()
 
     def log_request_error(self, message, url, response):
-        _log.warn("Request error:    {}".format(message))
-        _log.warn("Request URL:      {}".format(url))
+        log.warn("Request error:    {}".format(message))
+        log.warn("Request URL:      {}".format(url))
 
         if response is not None:
-            _log.warn("Response headers: {}".format(response.headers))
+            log.warn("Response headers: {}".format(response.headers))
 
             if response.status_code == 500:
-                _log.warn("Response text:    {}".format(response.text))
+                log.warn("Response text:    {}".format(response.text))
             else:
-                _log.debug("Response text:    {}".format(response.text))
+                log.debug("Response text:    {}".format(response.text))
 
 def parse_timestamp(timestamp, format="%Y-%m-%dT%H:%M:%SZ"):
     if timestamp is None:
         return None
 
-    dt = _datetime.datetime.strptime(timestamp, format)
-    dt = dt.replace(tzinfo=_datetime.timezone.utc)
+    dt = datetime.datetime.strptime(timestamp, format)
+    dt = dt.replace(tzinfo=datetime.timezone.utc)
 
     return int(round(dt.timestamp() * 1000))
 

@@ -19,11 +19,7 @@
 
 from .model import *
 
-import logging as _logging
-
-_log = _logging.getLogger("blinky.circleci")
-
-_status_mapping = {
+status_mapping = {
     "success": PASSED,
     "failed": FAILED,
 }
@@ -50,7 +46,7 @@ class CircleCiJob(HttpJob):
         number = data["build_num"]
 
         status = data["status"]
-        status = _status_mapping.get(status, status)
+        status = status_mapping.get(status, status)
 
         start_time = data["start_time"]
 

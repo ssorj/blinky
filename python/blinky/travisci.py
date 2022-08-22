@@ -19,11 +19,7 @@
 
 from .model import *
 
-import logging as _logging
-
-_log = _logging.getLogger("blinky.travisci")
-
-_status_mapping = {
+status_mapping = {
     "passed": PASSED,
     "failed": FAILED,
     "errored": FAILED,
@@ -62,7 +58,7 @@ class TravisCiJob(HttpJob):
         build_id = data["id"]
 
         status = data["state"]
-        status = _status_mapping.get(status, status)
+        status = status_mapping.get(status, status)
 
         start_time = parse_timestamp(data["started_at"])
         duration = data["duration"]

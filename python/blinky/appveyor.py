@@ -19,11 +19,7 @@
 
 from .model import *
 
-import logging as _logging
-
-_log = _logging.getLogger("blinky.appveyor")
-
-_status_mapping = {
+status_mapping = {
     "success": PASSED,
     "failed": FAILED,
 }
@@ -51,7 +47,7 @@ class AppVeyorJob(HttpJob):
         data = data["build"]
 
         status = data["status"]
-        status = _status_mapping.get(status, status)
+        status = status_mapping.get(status, status)
 
         start_time = data.get("started")
 

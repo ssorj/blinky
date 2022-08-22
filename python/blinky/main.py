@@ -26,11 +26,11 @@ import time
 
 from .model import Model
 
-_log = logging.getLogger("blinky.main")
+log = logging.getLogger("blinky.main")
 
-_description = "Blinky collects and displays results from CI jobs"
+description = "Blinky collects and displays results from CI jobs"
 
-_epilog = """
+epilog = """
 Blinky looks for its configuration in the following locations:
 
   1. The FILE indicated by --config
@@ -45,8 +45,8 @@ class BlinkyCommand(brbn.BrbnCommand):
         self.home = home
         self.static_dir = os.path.join(self.home, "static")
 
-        self.parser.description = _description
-        self.parser.epilog = _epilog
+        self.parser.description = description
+        self.parser.epilog = epilog
 
         user_dir = os.path.expanduser("~")
         default_config_file = os.path.join(user_dir, ".config", "blinky", "config.py")

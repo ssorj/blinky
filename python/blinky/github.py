@@ -19,12 +19,7 @@
 
 from .model import *
 
-import logging as _logging
-import urllib.parse as _parse
-
-_log = _logging.getLogger("blinky.github")
-
-_status_mapping = {
+status_mapping = {
     "success": PASSED,
     "failure": FAILED,
 }
