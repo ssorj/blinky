@@ -17,21 +17,16 @@
 # under the License.
 #
 
-import argparse as _argparse
-import asyncio as _asyncio
-import brbn as _brbn
-import httpx as _httpx
-import json as _json
-import logging as _logging
-import os as _os
-import runpy as _runpy
-import sys as _sys
-import time as _time
-import uuid as _uuid
+import asyncio
+import brbn
+import httpx
+import logging
+import os
+import time
 
 from .model import Model
 
-_log = _logging.getLogger("blinky.main")
+_log = logging.getLogger("blinky.main")
 
 _description = "Blinky collects and displays results from CI jobs"
 
@@ -43,18 +38,18 @@ Blinky looks for its configuration in the following locations:
   3. /etc/blinky/config.py
 """
 
-class BlinkyCommand(_brbn.BrbnCommand):
+class BlinkyCommand(brbn.BrbnCommand):
     def __init__(self, home):
-        super().__init__(server=_brbn.Server())
+        super().__init__(server=brbn.Server())
 
         self.home = home
-        self.static_dir = _os.path.join(self.home, "static")
+        self.static_dir = os.path.join(self.home, "static")
 
         self.parser.description = _description
         self.parser.epilog = _epilog
 
-        user_dir = _os.path.expanduser("~")
-        default_config_file = _os.path.join(user_dir, ".config", "blinky", "config.py")
+        user_dir = os.path.expanduser("~")
+        default_config_file = os.path.join(user_dir, ".config", "blinky", "config.py")
 
         self.parser.add_argument("--config", default=default_config_file, metavar="FILE",
                                  help="Load configuration from FILE")
@@ -65,10 +60,10 @@ class BlinkyCommand(_brbn.BrbnCommand):
         self.model = Model()
         self.model.load(self.args.config)
 
-        main = _brbn.PinnedFileResource(_os.path.join(self.static_dir, "main.html"))
+        main = brbn.PinnedFileResource(os.path.join(self.static_dir, "main.html"))
         data = DataResource(app=self)
         proxy = ProxyResource(app=self)
-        files = _brbn.StaticDirectoryResource(self.static_dir)
+        files = brbn.StaticDirectoryResource(self.static_dir)
 
         self.server.add_route("/", main)
         self.server.add_route("/api/data", data)
@@ -82,13 +77,13 @@ class BlinkyCommand(_brbn.BrbnCommand):
 
     async def update(self):
         while True:
-            start = _time.time()
+            start = time.time()
             await self.model.update()
-            elapsed = _time.time() - start
+            elapsed = time.time() - start
 
-            await _asyncio.sleep(max(0, 30 * 60 - elapsed))
+            await asyncio.sleep(max(0, 30 * 60 - elapsed))
 
-class DataResource(_brbn.Resource):
+class DataResource(brbn.Resource):
     async def process(self, request):
         return self.app.model
 
@@ -101,11 +96,11 @@ class DataResource(_brbn.Resource):
     async def render(self, request, model):
         return model.json
 
-class ProxyResource(_brbn.Resource):
+class ProxyResource(brbn.Resource):
     async def process(self, request):
         url = request.require("url")
 
-        async with _httpx.AsyncClient() as client:
+        async with httpx.AsyncClient() as client:
             return await client.get(url)
 
     async def get_content_type(self, request, proxied_response):

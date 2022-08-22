@@ -34,6 +34,8 @@ def test_(*args, **kwargs):
 
 @command
 def run_():
+    """Run the server"""
+
     clean()
     build()
 
