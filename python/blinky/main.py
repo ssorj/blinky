@@ -59,16 +59,16 @@ class BlinkyCommand(_brbn.BrbnCommand):
         self.parser.add_argument("--config", default=default_config_file, metavar="FILE",
                                  help="Load configuration from FILE")
 
-    def init(self):
-        super().init()
+    def init(self, args=None):
+        super().init(args=args)
 
         self.model = Model()
         self.model.load(self.args.config)
 
-        main = _brbn.FileResource(dir=self.static_dir, subpath="/main.html")
+        main = _brbn.PinnedFileResource(_os.path.join(self.static_dir, "main.html"))
         data = DataResource(app=self)
         proxy = ProxyResource(app=self)
-        files = _brbn.FileResource(dir=self.static_dir)
+        files = _brbn.StaticDirectoryResource(self.static_dir)
 
         self.server.add_route("/", main)
         self.server.add_route("/api/data", data)
@@ -77,6 +77,7 @@ class BlinkyCommand(_brbn.BrbnCommand):
         self.server.add_route("/*", files)
 
         self.server.add_startup_task(self.update())
+
         self.server.csp = "default-src 'self' *.googleapis.com *.gstatic.com"
 
     async def update(self):
