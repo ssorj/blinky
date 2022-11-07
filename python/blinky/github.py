@@ -56,7 +56,7 @@ class GitHubJob(HttpJob):
             self.name = data["name"]
 
         status = data["conclusion"]
-        status = _status_mapping.get(status, status)
+        status = status_mapping.get(status, status)
 
         start_time = parse_timestamp(data["created_at"])
         duration = None

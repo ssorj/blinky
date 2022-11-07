@@ -49,7 +49,7 @@ class JenkinsJob(HttpJob):
         number = data["number"]
 
         status = data["result"]
-        status = _status_mapping.get(status, status)
+        status = status_mapping.get(status, status)
 
         html_url = f"{self.html_url}/{number}"
         data_url = f"{html_url}/api/json?{self.rest_api_qs}"
