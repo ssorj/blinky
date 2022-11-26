@@ -42,7 +42,13 @@ class Page extends gesso.Page {
     }
 
     update() {
-        state.query = Object.fromEntries(new URLSearchParams(window.location.search).entries());
+        for (const [key, value] of new URLSearchParams(window.location.search).entries()) {
+            if (value) {
+                state.query[key] = value;
+            }
+        }
+
+            // state.query = Object.fromEntries();
 
         gesso.getJson("/api/data", (data) => {
             state.data = data;
@@ -140,7 +146,7 @@ function renderBody(parent) {
     } else if (view === "table") {
         renderTableView(elem);
     } else {
-        throw new Error();
+        throw new Error(`Unknown view mode: ${view}`);
     }
 }
 
