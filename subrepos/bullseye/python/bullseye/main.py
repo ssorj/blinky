@@ -30,8 +30,7 @@ class _Project:
     def __init__(self):
         self.name = None
         self.source_dir = "python"
-        self.included_modules = ["*"]
-        self.excluded_modules = ["plano", "bullseye"]
+        self.source_exclude = [".gitignore", "/bullseye"]
         self.data_dirs = []
         self.build_dir = "build"
         self.test_modules = []
@@ -74,15 +73,11 @@ def configure_file(input_file, output_file, substitutions, quiet=False):
     return output_file
 
 _prefix_arg = CommandArgument("prefix", help="The base path for installed files", default=_default_prefix)
-_clean_arg = CommandArgument("clean_", help="Clean before starting", display_name="clean")
 _verbose_arg = CommandArgument("verbose", help="Print detailed logging to the console")
 
-@command(args=(_prefix_arg, _clean_arg))
-def build(prefix=None, clean_=False):
+@command(args=(_prefix_arg, _verbose_arg))
+def build(prefix=None, verbose=False):
     check_project()
-
-    if clean_:
-        clean()
 
     build_file = join(project.build_dir, "build.json")
     build_data = {}
@@ -117,56 +112,58 @@ def build(prefix=None, clean_=False):
     for path in find("bin", exclude="*.in"):
         copy(path, join(project.build_dir, path), inside=False, symlinks=False)
 
-    for path in find(project.source_dir, "*.py"):
-        module_name = get_name_stem(path)
-        included = any([_fnmatch.fnmatchcase(module_name, x) for x in project.included_modules])
-        excluded = any([_fnmatch.fnmatchcase(module_name, x) for x in project.excluded_modules])
+    excluded_dirs = [x[1:] for x in project.source_exclude if x.startswith("/")]
+    excluded_files = [x for x in project.source_exclude if not x.startswith("/")]
+    top_level_names = list_dir(project.source_dir, exclude=excluded_dirs)
 
-        if included and not excluded:
+    for name in top_level_names:
+        path = join(project.source_dir, name)
+
+        if is_file(path) and not any([_fnmatch.fnmatchcase(name, x) for x in excluded_files]):
             copy(path, join(project.build_dir, project.name, path), inside=False, symlinks=False)
 
-    for dir_name in project.data_dirs:
-        for path in find(dir_name):
+    for name in top_level_names:
+        path = join(project.source_dir, name)
+
+        if is_dir(path):
+            for subpath in find(path, exclude=excluded_files):
+                copy(subpath, join(project.build_dir, project.name, subpath), inside=False, symlinks=False)
+
+    for name in project.data_dirs:
+        for path in find(name):
             copy(path, join(project.build_dir, project.name, path), inside=False, symlinks=False)
 
-@command(args=(CommandArgument("include", help="Run tests with names matching PATTERN", metavar="PATTERN"),
-               CommandArgument("exclude", help="Do not run tests with names matching PATTERN", metavar="PATTERN"),
-               CommandArgument("unskip", help="Run skipped tests matching PATTERN", metavar="PATTERN"),
-               CommandArgument("list_", help="Print the test names and exit", display_name="list"),
-               _verbose_arg, _clean_arg))
-def test_(include="*", exclude=None, unskip=None, list_=False, verbose=False, clean_=False):
+@command(passthrough=True)
+def test_(passthrough_args=[]):
     check_project()
 
-    if clean_:
-        clean()
-
-    if not list_:
-        build()
+    build()
 
     with project_env():
         modules = [_importlib.import_module(x) for x in project.test_modules]
 
-        if not modules: # pragma: nocover
-            notice("No tests found")
-            return
+        PlanoTestCommand(modules).main(passthrough_args)
 
-        args = list()
+@command
+def coverage():
+    """
+    Analyze test coverage
+    """
 
-        if list_:
-            print_tests(modules)
-            return
+    check_project()
+    check_program("coverage", "Install the Python coverage package")
 
-        exclude = nvl(exclude, ())
-        unskip = nvl(unskip, ())
+    run(f"coverage run --include {project.source_dir}/\* {which('plano')} test", stash=True)
+    run("coverage report")
+    run("coverage html")
 
-        run_tests(modules, include=include, exclude=exclude, unskip=unskip, verbose=verbose)
+    print("OUTPUT:", get_file_url("htmlcov/index.html"))
 
-@command(args=(CommandArgument("staging_dir", help="A path prepended to installed files"),
-               _prefix_arg, _clean_arg))
-def install(staging_dir="", prefix=None, clean_=False):
+@command(args=(CommandArgument("staging_dir", help="A path prepended to installed files"), _prefix_arg, _verbose_arg))
+def install(staging_dir="", prefix=None, verbose=False):
     check_project()
 
-    build(prefix=prefix, clean_=clean_)
+    build(prefix=prefix, verbose=verbose)
 
     assert is_dir(project.build_dir), list_dir()
 
@@ -190,7 +187,8 @@ def clean():
 
     remove(project.build_dir)
     remove(find(".", "__pycache__"))
-    remove(find(".", "*.pyc"))
+    remove(".coverage")
+    remove("htmlcov")
 
 @command(args=(CommandArgument("undo", help="Generate settings that restore the previous environment"),))
 def env(undo=False):
@@ -210,111 +208,29 @@ def env(undo=False):
     home_dir = join(project_dir, project.build_dir, project.name)
 
     if undo:
-        print("[[ ${0} ]] && export {1}=${2} && unset {3}".format(old_home_var, home_var, old_home_var, old_home_var))
-        print("[[ $OLD_PATH ]] && export PATH=$OLD_PATH && unset OLD_PATH")
-        print("[[ $OLD_PYTHONPATH ]] && export PYTHONPATH=$OLD_PYTHONPATH && unset OLD_PYTHONPATH")
+        print(f"[ -n \"${{{old_home_var}}}\" ] && export {home_var}=\"${{{old_home_var}}}\" && unset {old_home_var}")
+        print("[ -n \"${OLD_PATH}\" ] && export PATH=\"${OLD_PATH}\" && unset OLD_PATH")
+        print("[ -n \"${OLD_PYTHONPATH}\" ] && export PYTHONPATH=\"${OLD_PYTHONPATH}\" && unset OLD_PYTHONPATH")
 
         return
 
-    print("[[ ${0} ]] && export {1}=${2}".format(home_var, old_home_var, home_var))
-    print("[[ $PATH ]] && export OLD_PATH=$PATH")
-    print("[[ $PYTHONPATH ]] && export OLD_PYTHONPATH=$PYTHONPATH")
+    print(f"[ -n \"${{{home_var}}}\" ] && export {old_home_var}=\"${{{home_var}}}\"")
+    print("[ -n \"${PATH}\" ] && export OLD_PATH=\"${PATH}\"")
+    print("[ -n \"${PYTHONPATH}\" ] && export OLD_PYTHONPATH=\"${PYTHONPATH}\"")
 
-    print("export {0}={1}".format(home_var, home_dir))
+    print(f"export {home_var}=\"{home_dir}\"")
 
     path = [
         join(project_dir, project.build_dir, "bin"),
-        ENV.get("PATH", ""),
+        "${PATH}",
     ]
 
-    print("export PATH={0}".format(join_path_var(*path)))
+    print("export PATH=\"{}\"".format(join_path_var(*path)))
 
     python_path = [
         join(home_dir, project.source_dir),
         join(project_dir, project.source_dir),
-        ENV.get("PYTHONPATH", ""),
+        "${PYTHONPATH}",
     ]
 
-    print("export PYTHONPATH={0}".format(join_path_var(*python_path)))
-
-@command(args=(CommandArgument("filename", help="Which file to generate"),
-               CommandArgument("stdout", help="Print to stdout instead of writing the file directly")))
-def generate(filename, stdout=False):
-    """
-    Generate standard project files
-
-    Use one of the following filenames:
-
-        .gitignore
-        LICENSE.txt
-        README.md
-        VERSION.txt
-
-    Use the special filename "all" to generate all of them.
-    """
-
-    assert project.name
-
-    project_files = _StringCatalog(__file__)
-
-    if filename == "all":
-        for name in project_files:
-            _generate_file(project_files, name, stdout)
-    else:
-        _generate_file(project_files, filename, stdout)
-
-def _generate_file(project_files, filename, stdout):
-    try:
-        content = project_files[filename]
-    except KeyError:
-        exit("File {0} is not one of the options".format(repr(filename)))
-
-    content = content.lstrip()
-    content = content.format(project_title=project.name.capitalize(), project_name=project.name)
-
-    if stdout:
-        print(content, end="")
-    else:
-        write(filename, content)
-
-# @command
-# def coverage():
-#     check_program("coverage3")
-
-#     with project_env():
-#         run("coverage3 run --include python/qtools/\* build/scripts-3.9/qtools-self-test")
-#         run("coverage3 report")
-#         run("coverage3 html")
-
-#         print(f"file:{get_current_dir()}/htmlcov/index.html")
-
-class _StringCatalog(dict):
-    def __init__(self, path):
-        super(_StringCatalog, self).__init__()
-
-        self.path = "{0}.strings".format(split_extension(path)[0])
-
-        check_file(self.path)
-
-        key = None
-        out = list()
-
-        for line in read_lines(self.path):
-            line = line.rstrip()
-
-            if line.startswith("[") and line.endswith("]"):
-                if key:
-                    self[key] = "".join(out).strip() + "\n"
-
-                out = list()
-                key = line[1:-1]
-
-                continue
-
-            out.append(line)
-            out.append("\r\n")
-
-        self[key] = "".join(out).strip() + "\n"
-
-    def __repr__(self):
-        return format_repr(self)
+    print("export PYTHONPATH=\"{}\"".format(join_path_var(*python_path)))
