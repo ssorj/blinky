@@ -34,20 +34,7 @@ See an [example configuration](https://github.com/ssorj/blinky/blob/master/misc/
 
 ### Dependencies
 
-| Name                  | Fedora package
-| --------------------- | ---
-| Python 3              | python3
-| PySerial              | python3-pyserial
-| Requests              | python3-requests
-| Tornado               | python3-tornado
-
-### Using Fedora packages
-
-    $ sudo dnf enable jross/ssorj
-    $ sudo dnf install blinky
-
-If you don't have `dnf`, use the repo files at
-<https://copr.fedorainfracloud.org/coprs/jross/ssorj/>.
+    sudo dnf install python3-httpx python3-uvicorn
 
 ### Installing from source
 
