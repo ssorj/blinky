@@ -1,3 +1,4 @@
+
 # Blinky
 
 Blinky collects and displays the status of CI jobs.
@@ -10,12 +11,13 @@ An *environment* is a context for running a component, such as an OS
 or language runtime.
 
 An *agent* represents a server or service that runs jobs.  It comes in
-various types: `JenkinsAgent`, `TravisAgent`, `AppVeyorAgent`, or
-`GitHubAgent`.
+various types: `JenkinsAgent`, `TravisAgent`, `AppVeyorAgent`,
+`GitLabAgent`, or `GitHubAgent`.
 
 A *job* is a channel for repeatedly executing a test of a particular
 component in a particular environment.  Like an agent, a job has
-types: `JenkinsJob`, `TravisJob`, `AppVeyorJob`, or `GitHubJob`.
+types: `JenkinsJob`, `TravisJob`, `AppVeyorJob`, `GitLabJob` or
+`GitHubJob`.
 
 Jobs are organized into named *groups*.  These are used for
 presentation.
