@@ -70,3 +70,9 @@ Failed:    0
 === RESULT ===
 All tests passed
 ~~~
+
+## Things to know
+
+* The plano command accepts command sequences in the form "this,that"
+  (no spaces).  The command arguments are applied to the last command
+  only.

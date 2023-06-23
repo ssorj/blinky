@@ -33,7 +33,7 @@ build:
 .PHONY: test
 test: clean build
 	python -m venv build/venv
-	. build/venv/bin/activate && pip install --force-reinstall dist/plano-*-py3-none-any.whl
+	. build/venv/bin/activate && pip install --force-reinstall dist/ssorj_plano-*-py3-none-any.whl
 	. build/venv/bin/activate && plano-self-test
 
 .PHONY: qtest
@@ -42,7 +42,7 @@ qtest:
 
 .PHONY: install
 install: build
-	pip install --user --force-reinstall dist/plano-*-py3-none-any.whl
+	pip install --user --force-reinstall dist/ssorj_plano-*-py3-none-any.whl
 
 .PHONY: clean
 clean:
@@ -56,7 +56,7 @@ docs:
 .PHONY: coverage
 coverage: build
 	python -m venv build/venv
-	. build/venv/bin/activate && pip install --force-reinstall dist/plano-*-py3-none-any.whl
+	. build/venv/bin/activate && pip install --force-reinstall dist/ssorj_plano-*-py3-none-any.whl
 	. build/venv/bin/activate && PYTHONPATH=build/venv/lib/python3.10/site-packages coverage run \
 		--include build/venv/lib/python\*/site-packages/plano/\*,build/venv/bin/\* \
 		build/venv/bin/plano-self-test
