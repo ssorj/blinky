@@ -31,4 +31,4 @@ group = Group(model, client_tests, "Proton C")
 # To look up GitHub Actions workflow IDs:
 # curl https://api.github.com/repos/apache/qpid-proton/actions/workflows
 
-GitHubJob  (model, group, proton_c,         multiple,       github,           None,                         "apache/qpid-proton", "master", "Build", 2012003)
+GitHubJob  (model, group, proton_c,         multiple,       github,           None,                         "apache/qpid-proton", "main", "Build", 2012003)
