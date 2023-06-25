@@ -28,7 +28,7 @@ ENV HOME=/app
 
 WORKDIR /src
 
-RUN ./plano install --clean --prefix /app
+RUN ./plano clean,install --prefix /app
 
 FROM registry.fedoraproject.org/fedora-minimal
 

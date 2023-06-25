@@ -83,7 +83,7 @@ def test_image(clean=False):
 @command
 def clean_image():
     """Delete the container image"""
-    run(f"podman image rm {image_tag}")
+    run(f"podman image rm {image_tag}", check=False)
 
 @command
 def registry_login():
@@ -102,5 +102,5 @@ def push_image():
 def big_test():
     """Run all the tests I have"""
 
-    test(clean_=True)
+    test()
     test_image(clean=True)
