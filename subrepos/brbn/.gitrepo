@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = git@github.com:ssorj/brbn.git
+	branch = main
+	commit = e1011bdcb2256f0ee75cabd3622c757bde7622a4
+	parent = 6e0cad57efafc6248c2edd9f1a20a31bbe5915c4
+	method = merge
+	cmdver = 0.4.6

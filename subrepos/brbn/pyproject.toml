@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ssorj-brbn"
+version = "1.0.0"
+authors = [ { name = "Justin Ross", email = "jross@apache.org"} ]
+description = "Brbn serves HTTP"
+license = { file = "LICENSE.txt" }
+readme = "README.md"
+classifiers = [ "License :: OSI Approved :: Apache Software License" ]
+requires-python = ">=3.10"
+dependencies = [ "httpx", "uvicorn[standard]" ]
+
+[project.scripts]
+brbn = "brbn.main:main"
+brbn-self-test = "brbn.tests:main"
+
+[project.urls]
+"Homepage" = "https://github.com/ssorj/brbn"
+"Bug Tracker" = "https://github.com/ssorj/brbn/issues"

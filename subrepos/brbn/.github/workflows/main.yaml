@@ -1,0 +1,25 @@
+name: main
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 0 * * 0"
+jobs:
+  main:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        version: ["3.10", "3.x"]
+    runs-on: ${{matrix.os}}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{matrix.version}}
+      - run: pip install build wheel
+      - run: python plano build
+        env:
+          PYTHONPATH: subrepos/plano/src
+      - run: pip install dist/ssorj_brbn-1.0.0-py3-none-any.whl
+      - run: brbn-self-test
