@@ -62,7 +62,7 @@ def run_image(clean=False):
 
     _maybe_build_image(clean)
 
-    run(f"podman run --rm -p 8080:8080 {image_tag}")
+    run(f"podman run --rm --net host -p 8080:8080 {image_tag}")
 
 @command
 def debug_image(clean=False):
@@ -70,7 +70,7 @@ def debug_image(clean=False):
 
     _maybe_build_image(clean)
 
-    run(f"podman run --rm -p 8080:8080 -it {image_tag} /bin/bash")
+    run(f"podman run --rm -it {image_tag} /bin/bash")
 
 @command
 def test_image(clean=False):
@@ -78,7 +78,7 @@ def test_image(clean=False):
 
     _maybe_build_image(clean)
 
-    run(f"podman run --rm -p 8080:8080 -it {image_tag} blinky --init-only")
+    run(f"podman run --rm -it {image_tag} blinky --init-only")
 
 @command
 def clean_image():

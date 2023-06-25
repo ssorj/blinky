@@ -32,7 +32,7 @@ RUN ./plano clean,install --prefix /app
 
 FROM registry.fedoraproject.org/fedora-minimal
 
-RUN microdnf -y install python3-certifi python3-requests python3-tornado && microdnf clean all
+RUN microdnf -y install python3-httpx python3-uvicorn && microdnf clean all
 
 COPY --from=build /app /app
 
