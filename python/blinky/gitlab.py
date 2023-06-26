@@ -26,7 +26,7 @@ _log = _logging.getLogger("blinky.gitlab")
 
 _status_mapping = {
     "success": PASSED,
-    "failure": FAILED,
+    "failed": FAILED,
 }
 
 class GitLabAgent(HttpAgent):
