@@ -26,7 +26,7 @@ _log = _logging.getLogger("blinky.jenkins")
 _status_mapping = {
     "SUCCESS": PASSED,
     "FAILURE": FAILED,
-    "UNSTABLE": FAILED,
+    "UNSTABLE": UNSTABLE,
 }
 
 class JenkinsAgent(HttpAgent):

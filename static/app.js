@@ -248,8 +248,13 @@ class Blinky {
 
         if (currResult.status === "PASSED") {
             elem.classList.add("passed");
-        } else if (currResult.status === "FAILED") {
-            elem.classList.add("failed");
+        } else {
+            if (currResult.status === "FAILED") {
+                elem.classList.add("failed");
+            }
+            if (currResult.status === "UNSTABLE") {
+                elem.classList.add("unstable");
+            }
 
             if (prevResult != null && prevResult.status === "PASSED") {
                 elem.classList.add("blinky");

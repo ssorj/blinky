@@ -32,6 +32,7 @@ _log = _logging.getLogger("blinky.model")
 
 PASSED = "PASSED"
 FAILED = "FAILED"
+UNSTABLE = "UNSTABLE"
 
 class Model:
     def __init__(self):

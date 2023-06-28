@@ -150,6 +150,10 @@ div.job.failed a.job-summary {
     background-color: rgb(255, 63, 0);
 }
 
+div.job.unstable a.job-summary {
+    background-color: rgb(255, 189, 0);
+}
+
 div.job.no-data a.job-summary, div.job.stale-data a.job-summary {
     border: 0.2em solid rgb(191, 191, 191);
     background-color: white;
