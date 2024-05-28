@@ -57,9 +57,10 @@ class JenkinsJob(HttpJob):
         tests_url = None
 
         for action in data["actions"]:
-            if action.get("_class") == "hudson.tasks.junit.TestResultAction":
-                tests_url = f"{html_url}/testReport"
-                break
+            if action is not None:
+                if action.get("_class") == "hudson.tasks.junit.TestResultAction":
+                    tests_url = f"{html_url}/testReport"
+                    break
 
         result = JobResult()
         result.number = number
